@@ -19,9 +19,12 @@ contract YourContract {
     bool public premium = false;
     uint256 public totalCounter = 0;
     mapping(address => uint256) public userGreetingCounter;
+    address public delegate;
 
     // Events: a way to emit log statements from smart contract that can be listened to by external parties
     event GreetingChange(address indexed greetingSetter, string newGreeting, bool premium, uint256 value);
+
+    event DelegateChanged(address indexed newDelegate, address indexed oldDelegate);
 
     // Constructor: Called once on contract deployment
     // Check packages/foundry/deploy/Deploy.s.sol
@@ -35,6 +38,12 @@ contract YourContract {
         // msg.sender: predefined variable that represents address of the account that called the current function
         require(msg.sender == owner, "Not the Owner");
         _;
+    }
+
+    function setDelegate(address _delegate) public isOwner {
+        address oldDelegate = delegate;
+        delegate = _delegate;
+        emit DelegateChanged(_delegate, oldDelegate);
     }
 
     /**

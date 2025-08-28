@@ -7,3 +7,9 @@
 [submodule "packages/foundry/lib/solidity-bytes-utils"]
 	path = packages/foundry/lib/solidity-bytes-utils
 	url = https://github.com/gnsps/solidity-bytes-utils
+[submodule "packages/foundry/lib/uniswap-hooks"]
+	path = packages/foundry/lib/uniswap-hooks
+	url = https://github.com/OpenZeppelin/uniswap-hooks
+[submodule "packages/foundry/lib/hookmate"]
+	path = packages/foundry/lib/hookmate
+	url = https://github.com/akshatmittal/hookmate
