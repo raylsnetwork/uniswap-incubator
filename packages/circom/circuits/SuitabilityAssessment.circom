@@ -4,12 +4,15 @@ include "node_modules/circomlib/circuits/bitify.circom";
 include "node_modules/circomlib/circuits/comparators.circom";
 
 /**
- * Respostas: 0..3 (4 opções) -> use 2 bits p/ range-check.
- * riskScore = answer1 + answer2 + answer3 + answer4 + answer5 ∈ [0..15]
- * Adequação: isSuitable = (riskScore >= thresholdPts)
+ * answers[i] ∈ {0,1,2,3}
+ * weights = [3,3,2,2,1]
+ * weightedScore = Σ (answers[i] * weights[i]) ∈ [0..33]
+ * isSuitable = (weightedScore >= thresholdScaled)
+ *
+ * Públicos: thresholdScaled, isSuitablePub
  */
-template SuitabilityAssessment() {
-    // ---- Entradas privadas (respostas) ----
+template SuitabilityAssessmentWeighted() {
+    // ---- Entradas privadas ----
     signal input answer1;
     signal input answer2;
     signal input answer3;
@@ -17,30 +20,43 @@ template SuitabilityAssessment() {
     signal input answer5;
 
     // ---- Entradas públicas ----
-    signal input thresholdPts;     // público real (o protocolo define)
-    signal input isSuitablePub;    // espelho público da saída
+    signal input thresholdScaled;   // 0..33 (frente converte 0..15 → 0..33)
+    signal input isSuitablePub;
 
     // ---- Saídas ----
-    signal output riskScore;       // privado por padrão
-    signal output isSuitable;      // saída “real” (privada a priori)
+    signal output weightedScore;    // Σ (ai * wi)
+    signal output isSuitable;
 
-    // (range-checks opcionais; removi para focar no erro)
-    riskScore <== answer1 + answer2 + answer3 + answer4 + answer5;
+    // Range-check: cada answer em 2 bits (0..3)
+    component a1b = Num2Bits(2); a1b.in <== answer1;
+    component a2b = Num2Bits(2); a2b.in <== answer2;
+    component a3b = Num2Bits(2); a3b.in <== answer3;
+    component a4b = Num2Bits(2); a4b.in <== answer4;
+    component a5b = Num2Bits(2); a5b.in <== answer5;
 
-    // Comparação simples: isSuitable = (riskScore >= thresholdPts)
-    component lt = LessThan(4);
-    lt.in[0] <== riskScore;
-    lt.in[1] <== thresholdPts;
+    // Ponderação
+    signal w1; w1 <== answer1 * 3;
+    signal w2; w2 <== answer2 * 3;
+    signal w3; w3 <== answer3 * 2;
+    signal w4; w4 <== answer4 * 2;
+    signal w5; w5 <== answer5 * 1;
+
+    weightedScore <== w1 + w2 + w3 + w4 + w5;  // ∈ [0..33] (cabe em 6 bits)
+
+    // Comparação: weightedScore >= thresholdScaled
+    // Usamos LessThan(6) porque 2^6 = 64 > 33
+    component lt = LessThan(6);
+    lt.in[0] <== weightedScore;
+    lt.in[1] <== thresholdScaled;
 
     isSuitable <== 1 - lt.out;
 
-    // Force o espelho público a ser igual à saída calculada
+    // Amarra a saída pública
     isSuitable === isSuitablePub;
 
-    // Booleanidade (boa prática)
+    // Booleanidade
     isSuitable * (1 - isSuitable) === 0;
 }
 
-// Somente *inputs* podem ser públicos.
-// Aqui tornamos públicos: thresholdPts e isSuitablePub (o espelho).
-component main { public [thresholdPts, isSuitablePub] } = SuitabilityAssessment();
+// Tornar públicos: thresholdScaled e isSuitablePub
+component main { public [thresholdScaled, isSuitablePub] } = SuitabilityAssessmentWeighted();

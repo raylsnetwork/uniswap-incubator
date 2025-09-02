@@ -13,6 +13,7 @@ circuits/SuitabilityAssessment_js/
 circuits/SuitabilityAssessment_cpp/
 circuits/*.ptau
 circuits/*.json
+artifacts/*
 
 # Powers of Tau
 pot/
