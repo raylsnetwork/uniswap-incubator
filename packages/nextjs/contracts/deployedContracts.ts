@@ -196,6 +196,13 @@ const deployedContracts = {
       deployedOnBlock: 8,
     },
   },
+
+  SuitabilityVerifier: {
+    address: "0x0000000000000000000000000000000000000000", // Substitua pelo endereço real
+    abi: [
+      // ABI será gerado automaticamente pelo Foundry
+    ] as const,
+  },
 } as const;
 
 export default deployedContracts satisfies GenericContractsDeclaration;
