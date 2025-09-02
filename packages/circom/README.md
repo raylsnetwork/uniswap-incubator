@@ -75,6 +75,10 @@ yarn test
 yarn compile
 ```
 
+```bash
+circom SuitabilityAssessment.circom --r1cs --wasm --sym --c -l "/Volumes/Lucas SSD/projects/uhi6"
+```
+
 Gera:
 - `circuits/SuitabilityAssessment.r1cs` - Constraints do circuito
 - `circuits/SuitabilityAssessment_js/` - Código JavaScript para cálculo de witness
