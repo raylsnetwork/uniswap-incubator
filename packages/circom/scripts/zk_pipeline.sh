@@ -9,6 +9,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CIRCUITS_DIR="$PKG_ROOT/circuits"
 POT_DIR="$PKG_ROOT/pot"
+CONTRACTS_DIR="$PKG_ROOT/contracts"
+FOUNDRY_DIR="$PKG_ROOT/../foundry"
+CONTRACT_VERIFIER="$FOUNDRY_DIR/contracts/SuitabilityVerifier.sol"
 
 INPUT_JSON="$SCRIPT_DIR/input.json"
 R1CS_PATH="$CIRCUITS_DIR/${CIRCUIT_NAME}.r1cs"
@@ -114,3 +117,15 @@ log "Gerando prova → $PROOF_JSON | público → $PUBLIC_JSON"
 log "Verificando prova…"
 "$SNARKJS_BIN" groth16 verify "$VKEY_JSON" "$PUBLIC_JSON" "$PROOF_JSON"
 log "✅ Prova verificada com sucesso!"
+
+# ─────────────────────────────
+# 7) Gerar solidity
+# ─────────────────────────────
+log "Exportando Solidity verifier → $CONTRACT_VERIFIER"
+"$SNARKJS_BIN" zkey export solidityverifier "$ZKEY1" "$CONTRACT_VERIFIER"
+
+log Renaming verifier contract to SuitabilityVerifier…
+sed -i 's/contract Groth16Verifier/contract SuitabilityVerifier/' "$CONTRACT_VERIFIER"
+
+log criando inputs Solidity…
+"$SNARKJS_BIN" generatecall | sed '1s/^/[/; $s/$/]/' > "$FOUNDRY_DIR/solidityInputs.json" 

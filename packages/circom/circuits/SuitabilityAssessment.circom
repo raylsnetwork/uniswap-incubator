@@ -19,6 +19,9 @@ template SuitabilityAssessmentWeighted() {
     signal input answer4;
     signal input answer5;
 
+    // ---- Entrada pública para a wallet ----
+    signal input wallet; // a 160-bit Ethereum address
+
     // ---- Entradas públicas ----
     signal input thresholdScaled;   // 0..33 (frente converte 0..15 → 0..33)
     signal input isSuitablePub;
@@ -59,4 +62,4 @@ template SuitabilityAssessmentWeighted() {
 }
 
 // Tornar públicos: thresholdScaled e isSuitablePub
-component main { public [thresholdScaled, isSuitablePub] } = SuitabilityAssessmentWeighted();
+component main { public [thresholdScaled, isSuitablePub, wallet] } = SuitabilityAssessmentWeighted();
