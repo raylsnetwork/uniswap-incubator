@@ -131,6 +131,7 @@ contract SuitabilityTest is Test, Deployers {
 
         // Fund proofSender with tokens
         currency0.transfer(proofSender, 1e18);
+        currency0.transfer(invalidProofSender, 1e18);
     }
 
     function testVerifyProofInBeforeSwap() public {
@@ -140,6 +141,8 @@ contract SuitabilityTest is Test, Deployers {
         bytes memory proofData = abi.encode(pA, pB, pC, pubSignals);
         uint256 amountIn = 1e16;
 
+        vm.startPrank(invalidProofSender, invalidProofSender);
+        IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
         vm.expectRevert();
         swapRouter.swapExactTokensForTokens({
             amountIn: amountIn,
@@ -150,6 +153,7 @@ contract SuitabilityTest is Test, Deployers {
             receiver: address(this),
             deadline: block.timestamp + 1
         });
+        vm.stopPrank();
 
         vm.startPrank(proofSender, proofSender);
         IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);

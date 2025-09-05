@@ -1,10 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ───────────────────────────── 
+# Arguments
+# ─────────────────────────────
+
+
+ONLYNEWPROOF=false
+CIRCUIT_NAME="SuitabilityAssessment"   # default
+
+# Parse args
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --new-proof)
+      ONLYNEWPROOF=true
+      shift
+      ;;
+    --circuit)
+      CIRCUIT_NAME="$2"
+      shift 2
+      ;;
+    --help)
+      echo "Usage: $0 [--new-proof] [--circuit CIRCUIT_NAME]"
+      exit 0
+      ;;
+    *)
+      echo "Unknown flag: $1"
+      exit 1
+      ;;
+  esac
+done
+
 # ─────────────────────────────
 # Configuração básica
 # ─────────────────────────────
-CIRCUIT_NAME="${1:-SuitabilityAssessment}"     # permite passar outro nome: ./zk_pipeline.sh MeuCircuito
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CIRCUITS_DIR="$PKG_ROOT/circuits"
@@ -60,12 +89,13 @@ fi
 # ─────────────────────────────
 # 1) Compilar circuito
 # ─────────────────────────────
-log "Compilando circuito: $CIRCUITS_DIR/${CIRCUIT_NAME}.circom"
-"$CIRCOM_BIN" "$CIRCUITS_DIR/${CIRCUIT_NAME}.circom" \
-  --r1cs --wasm --sym --c \
-  -l "$PKG_ROOT" \
-  -o "$CIRCUITS_DIR"
-
+if [ "$ONLYNEWPROOF" = false ]; then
+  log "Compilando circuito: $CIRCUITS_DIR/${CIRCUIT_NAME}.circom"
+  "$CIRCOM_BIN" "$CIRCUITS_DIR/${CIRCUIT_NAME}.circom" \
+    --r1cs --wasm --sym --c \
+    -l "$PKG_ROOT" \
+    -o "$CIRCUITS_DIR"
+fi
 # ─────────────────────────────
 # 2) Gerar witness
 # (usa generate_witness.js gerado pelo circom em <circuit>_js/)
@@ -77,34 +107,35 @@ fi
 log "Gerando witness em: $WITNESS"
 node "$GEN_WITNESS_JS" "$WASM_PATH" "$INPUT_JSON" "$WITNESS"
 
-# ─────────────────────────────
-# 3) Powers of Tau (bn128, 12)
-# ─────────────────────────────
-if [ ! -f "$PTAU0" ]; then
-  log "Iniciando Powers of Tau → $PTAU0"
-  "$SNARKJS_BIN" powersoftau new bn128 12 "$PTAU0" -v
-else
-  log "PTAU inicial já existe: $PTAU0"
+if [ "$ONLYNEWPROOF" = false ]; then
+  # ─────────────────────────────
+  # 3) Powers of Tau (bn128, 12)
+  # ─────────────────────────────
+  if [ ! -f "$PTAU0" ]; then
+    log "Iniciando Powers of Tau → $PTAU0"
+    "$SNARKJS_BIN" powersoftau new bn128 12 "$PTAU0" -v
+  else
+    log "PTAU inicial já existe: $PTAU0"
+  fi
+
+  log "Contribuindo para PTAU → $PTAU1"
+  "$SNARKJS_BIN" powersoftau contribute "$PTAU0" "$PTAU1" --name="First contribution" -v
+
+  # ─────────────────────────────
+  # 4) Phase 2 + setup groth16 + contribuição + export vkey
+  # ─────────────────────────────
+  log "Preparando Phase 2 → $PTAU_FINAL"
+  "$SNARKJS_BIN" powersoftau prepare phase2 "$PTAU1" "$PTAU_FINAL" -v
+
+  log "groth16 setup → $ZKEY0"
+  "$SNARKJS_BIN" groth16 setup "$R1CS_PATH" "$PTAU_FINAL" "$ZKEY0"
+
+  log "zkey contribute → $ZKEY1"
+  "$SNARKJS_BIN" zkey contribute "$ZKEY0" "$ZKEY1" --name="1st Contributor Name" -v
+
+  log "Exportando verification key → $VKEY_JSON"
+  "$SNARKJS_BIN" zkey export verificationkey "$ZKEY1" "$VKEY_JSON"
 fi
-
-log "Contribuindo para PTAU → $PTAU1"
-"$SNARKJS_BIN" powersoftau contribute "$PTAU0" "$PTAU1" --name="First contribution" -v
-
-# ─────────────────────────────
-# 4) Phase 2 + setup groth16 + contribuição + export vkey
-# ─────────────────────────────
-log "Preparando Phase 2 → $PTAU_FINAL"
-"$SNARKJS_BIN" powersoftau prepare phase2 "$PTAU1" "$PTAU_FINAL" -v
-
-log "groth16 setup → $ZKEY0"
-"$SNARKJS_BIN" groth16 setup "$R1CS_PATH" "$PTAU_FINAL" "$ZKEY0"
-
-log "zkey contribute → $ZKEY1"
-"$SNARKJS_BIN" zkey contribute "$ZKEY0" "$ZKEY1" --name="1st Contributor Name" -v
-
-log "Exportando verification key → $VKEY_JSON"
-"$SNARKJS_BIN" zkey export verificationkey "$ZKEY1" "$VKEY_JSON"
-
 # ─────────────────────────────
 # 5) Gerar prova
 # ─────────────────────────────
@@ -121,11 +152,13 @@ log "✅ Prova verificada com sucesso!"
 # ─────────────────────────────
 # 7) Gerar solidity
 # ─────────────────────────────
-log "Exportando Solidity verifier → $CONTRACT_VERIFIER"
-"$SNARKJS_BIN" zkey export solidityverifier "$ZKEY1" "$CONTRACT_VERIFIER"
+if [ "$ONLYNEWPROOF" = false ]; then
+  log "Exportando Solidity verifier → $CONTRACT_VERIFIER"
+  "$SNARKJS_BIN" zkey export solidityverifier "$ZKEY1" "$CONTRACT_VERIFIER"
 
-log Renaming verifier contract to SuitabilityVerifier…
-sed -i 's/contract Groth16Verifier/contract SuitabilityVerifier/' "$CONTRACT_VERIFIER"
+  log Renaming verifier contract to SuitabilityVerifier…
+  sed -i 's/contract Groth16Verifier/contract SuitabilityVerifier/' "$CONTRACT_VERIFIER"
+fi
 
 log criando inputs Solidity…
 "$SNARKJS_BIN" generatecall | sed '1s/^/[/; $s/$/]/' > "$FOUNDRY_DIR/solidityInputs.json" 
