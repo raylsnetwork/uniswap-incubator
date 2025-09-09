@@ -1,0 +1,16 @@
+[[31;22m[ERROR] [39;1msnarkJS[0m: Error: ENOENT: no such file or directory, open 'public.json'
+    at Object.readFileSync (node:fs:442:20)
+    at Object.zkeyExportSolidityCalldata [as action] (/Volumes/Lucas SSD/projects/uhi6/packages/circom/node_modules/snarkjs/build/cli.cjs:13118:51)
+    at clProcessor (/Volumes/Lucas SSD/projects/uhi6/packages/circom/node_modules/snarkjs/build/cli.cjs:483:37)
+    at Object.<anonymous> (/Volumes/Lucas SSD/projects/uhi6/packages/circom/node_modules/snarkjs/build/cli.cjs:12792:1)
+    at Module._compile (node:internal/modules/cjs/loader:1546:14)
+    at Object..js (node:internal/modules/cjs/loader:1698:10)
+    at Module.load (node:internal/modules/cjs/loader:1303:32)
+    at Function._load (node:internal/modules/cjs/loader:1117:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:218:24) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'public.json'
+}]

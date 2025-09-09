@@ -8,6 +8,7 @@ set -euo pipefail
 
 ONLYNEWPROOF=false
 CIRCUIT_NAME="SuitabilityAssessment"   # default
+ENTROPY=$(openssl rand -hex 32)
 
 # Parse args
 while [[ $# -gt 0 ]]; do
@@ -119,7 +120,7 @@ if [ "$ONLYNEWPROOF" = false ]; then
   fi
 
   log "Contribuindo para PTAU → $PTAU1"
-  "$SNARKJS_BIN" powersoftau contribute "$PTAU0" "$PTAU1" --name="First contribution" -v
+  "$SNARKJS_BIN" powersoftau contribute "$PTAU0" "$PTAU1" --name="First contribution" --entropy="$ENTROPY" -v
 
   # ─────────────────────────────
   # 4) Phase 2 + setup groth16 + contribuição + export vkey
@@ -131,7 +132,7 @@ if [ "$ONLYNEWPROOF" = false ]; then
   "$SNARKJS_BIN" groth16 setup "$R1CS_PATH" "$PTAU_FINAL" "$ZKEY0"
 
   log "zkey contribute → $ZKEY1"
-  "$SNARKJS_BIN" zkey contribute "$ZKEY0" "$ZKEY1" --name="1st Contributor Name" -v
+  "$SNARKJS_BIN" zkey contribute "$ZKEY0" "$ZKEY1" --name="1st Contributor Name" --entropy="$ENTROPY" -v
 
   log "Exportando verification key → $VKEY_JSON"
   "$SNARKJS_BIN" zkey export verificationkey "$ZKEY1" "$VKEY_JSON"
@@ -157,7 +158,8 @@ if [ "$ONLYNEWPROOF" = false ]; then
   "$SNARKJS_BIN" zkey export solidityverifier "$ZKEY1" "$CONTRACT_VERIFIER"
 
   log Renaming verifier contract to SuitabilityVerifier…
-  sed -i 's/contract Groth16Verifier/contract SuitabilityVerifier/' "$CONTRACT_VERIFIER"
+  #sed -i 's/contract Groth16Verifier/contract SuitabilityVerifier/' "$CONTRACT_VERIFIER"
+  perl -0777 -pe 's/contract Groth16Verifier/contract SuitabilityVerifier/g' -i "$CONTRACT_VERIFIER"
 fi
 
 log criando inputs Solidity…
