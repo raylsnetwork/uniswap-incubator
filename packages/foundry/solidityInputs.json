@@ -1,16 +1,2 @@
-[[31;22m[ERROR] [39;1msnarkJS[0m: Error: ENOENT: no such file or directory, open 'public.json'
-    at Object.readFileSync (node:fs:442:20)
-    at Object.zkeyExportSolidityCalldata [as action] (/Volumes/Lucas SSD/projects/uhi6/packages/circom/node_modules/snarkjs/build/cli.cjs:13118:51)
-    at clProcessor (/Volumes/Lucas SSD/projects/uhi6/packages/circom/node_modules/snarkjs/build/cli.cjs:483:37)
-    at Object.<anonymous> (/Volumes/Lucas SSD/projects/uhi6/packages/circom/node_modules/snarkjs/build/cli.cjs:12792:1)
-    at Module._compile (node:internal/modules/cjs/loader:1546:14)
-    at Object..js (node:internal/modules/cjs/loader:1698:10)
-    at Module.load (node:internal/modules/cjs/loader:1303:32)
-    at Function._load (node:internal/modules/cjs/loader:1117:12)
-    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-    at wrapModuleLoad (node:internal/modules/cjs/loader:218:24) {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: 'public.json'
-}]
+[["0x22d3fef3878e7e782e8b26e777c74be778d0caf5bf3803cd2c825281b43fd26a", "0x1810ac39d94d5f2b0f7fce6a813eb90187f4e067d7aa15ef83737b5c3fb1cb83"],[["0x034711e6c67f57e9aee3aca4cacaef49200270f2c9fe6b5b20570c46b88fa652", "0x0883fc409a364285e97ee0a113f7dc82756bb3811e36830d32eec061e01b7547"],["0x0a4a9f07cb10641ffcb899cb40fdc6a1c1f28953d50724cb21d4e558093053c8", "0x0bbf89e81bc3df467226cfee063f317a67ac3776c8a7e4040338789d3cf63a03"]],["0x02bec8a33a9f9b44aa824eea4904c8420cfc3f5c9020215e4d6aa3411f3ba4ad", "0x2e63babbae6cc21e66800db1b58a87d7b2840e753a9279c416f911846116ce26"],["0x000000000000000000000000000000000000000000000000000000000000001b","0x0000000000000000000000000000000000000000000000000000000000000001","0x0000000000000000000000001234567890123456789012345678901234567890","0x0000000000000000000000000000000000000000000000000000000000000019","0x0000000000000000000000000000000000000000000000000000000000000001"]
+]
