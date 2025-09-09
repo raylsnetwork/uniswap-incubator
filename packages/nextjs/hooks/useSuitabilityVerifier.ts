@@ -11,13 +11,13 @@ export const useSuitabilityVerifier = () => {
     const riskProfile = Math.floor((totalScore * 15) / maxPossibleScore);
 
     // Determinar nível de risco
-    let riskLevel: "conservador" | "moderado" | "sofisticado";
+    let riskLevel: "conservative" | "moderate" | "sophisticated";
     if (riskProfile <= 5) {
-      riskLevel = "conservador";
+      riskLevel = "conservative";
     } else if (riskProfile <= 10) {
-      riskLevel = "moderado";
+      riskLevel = "moderate";
     } else {
-      riskLevel = "sofisticado";
+      riskLevel = "sophisticated";
     }
 
     // Por enquanto, consideramos adequado se o perfil for >= 3
@@ -37,47 +37,37 @@ export const useSuitabilityVerifier = () => {
     return [
       {
         id: 1,
-        text: "Qual é sua experiência com investimentos?",
-        options: [
-          "Nenhuma experiência (0)",
-          "Pouca experiência (1)",
-          "Experiência moderada (2)",
-          "Muita experiência (3)",
-        ],
+        text: "What is your investment experience?",
+        options: ["No experience (0)", "Little experience (1)", "Moderate experience (2)", "Extensive experience (3)"],
         weight: 3,
       },
       {
         id: 2,
-        text: "Como você descreveria sua tolerância ao risco?",
-        options: ["Muito conservador (0)", "Conservador (1)", "Moderado (2)", "Agressivo (3)"],
+        text: "How would you describe your risk tolerance?",
+        options: ["Very conservative (0)", "Conservative (1)", "Moderate (2)", "Aggressive (3)"],
         weight: 3,
       },
       {
         id: 3,
-        text: "Qual é seu horizonte temporal para investimentos?",
+        text: "What is your investment time horizon?",
         options: [
-          "Curto prazo < 1 ano (0)",
-          "Médio prazo 1-5 anos (1)",
-          "Longo prazo 5-10 anos (2)",
-          "Muito longo prazo > 10 anos (3)",
+          "Short term < 1 year (0)",
+          "Medium term 1-5 years (1)",
+          "Long term 5-10 years (2)",
+          "Very long term > 10 years (3)",
         ],
         weight: 2,
       },
       {
         id: 4,
-        text: "Qual é seu principal objetivo financeiro?",
-        options: [
-          "Preservar capital (0)",
-          "Renda regular (1)",
-          "Crescimento moderado (2)",
-          "Crescimento agressivo (3)",
-        ],
+        text: "What is your main financial objective?",
+        options: ["Preserve capital (0)", "Regular income (1)", "Moderate growth (2)", "Aggressive growth (3)"],
         weight: 2,
       },
       {
         id: 5,
-        text: "Como você avalia seu conhecimento do mercado financeiro?",
-        options: ["Iniciante (0)", "Básico (1)", "Intermediário (2)", "Avançado (3)"],
+        text: "How do you rate your knowledge of the financial market?",
+        options: ["Beginner (0)", "Basic (1)", "Intermediate (2)", "Advanced (3)"],
         weight: 1,
       },
     ];
