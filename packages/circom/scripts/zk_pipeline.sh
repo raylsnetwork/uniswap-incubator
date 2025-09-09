@@ -40,25 +40,26 @@ CIRCUITS_DIR="$PKG_ROOT/circuits"
 POT_DIR="$PKG_ROOT/pot"
 CONTRACTS_DIR="$PKG_ROOT/contracts"
 FOUNDRY_DIR="$PKG_ROOT/../foundry"
-CONTRACT_VERIFIER="$FOUNDRY_DIR/contracts/SuitabilityVerifier.sol"
+VERIFIER_NAME="${CIRCUIT_NAME}Verifier.sol"
+CONTRACT_VERIFIER="$FOUNDRY_DIR/contracts/$VERIFIER_NAME"
 
-INPUT_JSON="$SCRIPT_DIR/input.json"
+INPUT_JSON="$SCRIPT_DIR/${CIRCUIT_NAME}_input.json"
 R1CS_PATH="$CIRCUITS_DIR/${CIRCUIT_NAME}.r1cs"
 WASM_DIR="$CIRCUITS_DIR/${CIRCUIT_NAME}_js"
 WASM_PATH="$WASM_DIR/${CIRCUIT_NAME}.wasm"
 GEN_WITNESS_JS="$WASM_DIR/generate_witness.js"
 
-PTAU0="$POT_DIR/pot12_0000.ptau"
-PTAU1="$POT_DIR/pot12_0001.ptau"
-PTAU_FINAL="$POT_DIR/pot12_final.ptau"
+PTAU0="$POT_DIR/${CIRCUIT_NAME}_pot12_0000.ptau"
+PTAU1="$POT_DIR/${CIRCUIT_NAME}_pot12_0001.ptau"
+PTAU_FINAL="$POT_DIR/${CIRCUIT_NAME}_pot12_final.ptau"
 
 ZKEY0="$POT_DIR/${CIRCUIT_NAME}_0000.zkey"
 ZKEY1="$POT_DIR/${CIRCUIT_NAME}_0001.zkey"
-VKEY_JSON="$POT_DIR/verification_key.json"
+VKEY_JSON="$POT_DIR/${CIRCUIT_NAME}_verification_key.json"
 
-WITNESS="$PKG_ROOT/witness.wtns"
-PROOF_JSON="$PKG_ROOT/proof.json"
-PUBLIC_JSON="$PKG_ROOT/public.json"
+WITNESS="$PKG_ROOT/${CIRCUIT_NAME}_witness.wtns"
+PROOF_JSON="$PKG_ROOT/${CIRCUIT_NAME}_proof.json"
+PUBLIC_JSON="$PKG_ROOT/${CIRCUIT_NAME}_public.json"
 
 # ─────────────────────────────
 # Helpers
@@ -156,9 +157,9 @@ if [ "$ONLYNEWPROOF" = false ]; then
   log "Exportando Solidity verifier → $CONTRACT_VERIFIER"
   "$SNARKJS_BIN" zkey export solidityverifier "$ZKEY1" "$CONTRACT_VERIFIER"
 
-  log Renaming verifier contract to SuitabilityVerifier…
-  sed -i 's/contract Groth16Verifier/contract SuitabilityVerifier/' "$CONTRACT_VERIFIER"
+  log Renaming verifier contract to ${CIRCUIT_NAME}Verifier…
+  sed -i "s/contract Groth16Verifier/contract ${CIRCUIT_NAME}Verifier/" "$CONTRACT_VERIFIER"
 fi
 
 log criando inputs Solidity…
-"$SNARKJS_BIN" generatecall | sed '1s/^/[/; $s/$/]/' > "$FOUNDRY_DIR/solidityInputs.json" 
+"$SNARKJS_BIN" zkey export soliditycalldata "$PUBLIC_JSON" "$PROOF_JSON" | sed '1s/^/[/; $s/$/]/' > "$FOUNDRY_DIR/${CIRCUIT_NAME}Inputs.json" 
