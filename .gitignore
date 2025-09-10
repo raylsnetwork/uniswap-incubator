@@ -21,3 +21,7 @@ node_modules
 
 # cli
 dist
+
+# artifacts
+packages/circom/artifacts
+packages/foundry/inputs

@@ -1,6 +1,7 @@
 {
   "name": "encryption",
   "packageManager": "yarn@3.2.3",
+  "type": "module",
   "dependencies": {
     "@noble/secp256k1": "^3.0.0",
     "circomlibjs": "^0.1.7",

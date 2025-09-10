@@ -63,15 +63,16 @@ contract RaylsHookTest is Test, Deployers {
         // Get all necessary json files
         string memory root = vm.projectRoot();
         // Get the proof for SuitabilityAssessment
-        string memory pathSuitability = string.concat(root, "/SuitabilityAssessmentInputs.json");
+        string memory pathSuitability = string.concat(root, "/inputs/SuitabilityAssessmentInputs.json");
         jsonSuitability = vm.readFile(pathSuitability);
 
         // Get the proof for PrivateSwapIntent
-        string memory pathPrivateSwap = string.concat(root, "/PrivateSwapIntentInputs.json");
+        string memory pathPrivateSwap = string.concat(root, "/inputs/PrivateSwapIntentInputs.json");
         jsonPrivateSwap = vm.readFile(pathPrivateSwap);
 
-        //  Get the encrypted payload for the auditor
-        jsonEncryptedPayload = vm.readFile("encryptedPayload.json");
+        //  Encrypt and get the encrypted payload for the auditor
+        RaylsHookHelper.encryptValuesForAuditor(vm);
+        jsonEncryptedPayload = vm.readFile("inputs/encryptedPayload.json");
 
         // Deploys all required artifacts.
         deployArtifacts();
