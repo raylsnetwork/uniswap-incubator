@@ -95,6 +95,7 @@ if [ "$ONLYNEWPROOF" = false ]; then
   "$CIRCOM_BIN" "$CIRCUITS_DIR/${CIRCUIT_NAME}.circom" \
     --r1cs --wasm --sym --c \
     -l "$PKG_ROOT" \
+    -l "$PKG_ROOT/node_modules/circomlib/circuits" \
     -o "$CIRCUITS_DIR"
 fi
 # ─────────────────────────────

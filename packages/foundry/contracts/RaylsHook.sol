@@ -12,6 +12,8 @@ import { BeforeSwapDelta, BeforeSwapDeltaLibrary } from "@uniswap/v4-core/src/ty
 import { SuitabilityAssessmentVerifier } from "./SuitabilityAssessmentVerifier.sol";
 import { console } from "forge-std/console.sol";
 
+import { PrivateSwapIntentVerifier } from "./PrivateSwapIntentVerifier.sol";
+
 contract RaylsHook is BaseHook {
     using PoolIdLibrary for PoolKey;
 
@@ -26,9 +28,25 @@ contract RaylsHook is BaseHook {
     mapping(PoolId => uint256 count) public beforeAddLiquidityCount;
     mapping(PoolId => uint256 count) public beforeRemoveLiquidityCount;
     SuitabilityAssessmentVerifier public suitabilityVerifier;
+    PrivateSwapIntentVerifier public privateSwapIntentVerifier;
 
-    constructor(IPoolManager _poolManager, address _suitabilityVerifier) BaseHook(_poolManager) {
+    mapping(uint256 => Commitment) public commitments;
+
+    event CommitmentStored(uint256 id, address indexed sender);
+    event Revealed(uint256 id, address indexed revealer);
+
+    struct Commitment {
+        bytes ciphertext; // AES/GCM ciphertext (includes tag)
+        bytes encKeyForAuditor; // encrypted symmetric key for auditor
+        bool exists;
+        bool executed;
+    }
+
+    constructor(IPoolManager _poolManager, address _suitabilityVerifier, address _privateSwapIntentVerifier)
+        BaseHook(_poolManager)
+    {
         suitabilityVerifier = SuitabilityAssessmentVerifier(_suitabilityVerifier);
+        privateSwapIntentVerifier = PrivateSwapIntentVerifier(_privateSwapIntentVerifier);
     }
 
     function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
@@ -67,8 +85,8 @@ contract RaylsHook is BaseHook {
 
         require(walletInProof == uint256(uint160(origin)), "Invalid wallet for this proof");
 
-        bool ok = suitabilityVerifier.verifyProof(pA, pB, pC, pubSignals);
-        require(ok, "Invalid proof");
+        bool suitabilityOk = suitabilityVerifier.verifyProof(pA, pB, pC, pubSignals);
+        require(suitabilityOk, "Invalid Suitability proof");
 
         return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
@@ -115,5 +133,33 @@ contract RaylsHook is BaseHook {
         if (success && data.length >= 32) {
             origin_ = abi.decode(data, (address));
         }
+    }
+
+    function executeCommitment(uint256 id, bytes calldata data) external {
+        require(!commitments[id].executed, "already executed");
+
+        (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
+            abi.decode(data, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
+
+        // Making sure we are executing the right commitment
+        bytes memory pubId = abi.encodePacked(
+            pubSignals[0], // Poseidon hash of (amount, recipient, nonce)
+            commitments[id].ciphertext,
+            commitments[id].encKeyForAuditor
+        );
+        require(uint256(keccak256(pubId)) == id, "commitment mismatch");
+        require(pubSignals[2] == 1, "Not marked as executed");
+        require(pubSignals[4] <= block.timestamp, "Commitment can not be executed yet");
+
+        bool privateVerifierOk = privateSwapIntentVerifier.verifyProof(pA, pB, pC, pubSignals);
+        require(privateVerifierOk, "Invalid PrivateSwapIntent proof");
+        commitments[id].executed = true;
+    }
+
+    function storeCommitment(uint256 id, bytes calldata ciphertext, bytes calldata encKeyForAuditor) external {
+        require(!commitments[id].exists, "already exists");
+        commitments[id] =
+            Commitment({ ciphertext: ciphertext, encKeyForAuditor: encKeyForAuditor, exists: true, executed: false });
+        emit CommitmentStored(id, msg.sender);
     }
 }

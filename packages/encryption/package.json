@@ -1,0 +1,16 @@
+{
+  "name": "encryption",
+  "packageManager": "yarn@3.2.3",
+  "dependencies": {
+    "@noble/secp256k1": "^3.0.0",
+    "circomlibjs": "^0.1.7",
+    "crypto": "^1.0.1",
+    "eccrypto": "^1.1.6",
+    "ethers": "^6.15.0",
+    "secp256k1": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/circomlibjs": "^0",
+    "@types/eccrypto": "^1"
+  }
+}
