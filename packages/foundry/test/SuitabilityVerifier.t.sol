@@ -2,6 +2,8 @@
 pragma solidity ^0.8.26;
 
 import { Test } from "forge-std/Test.sol";
+import "forge-std/StdJson.sol";
+import { console } from "forge-std/console.sol";
 
 import { IHooks } from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import { Hooks } from "@uniswap/v4-core/src/libraries/Hooks.sol";
@@ -22,8 +24,6 @@ import { Deployers } from "./utils/Deployers.sol";
 
 import { RaylsHook } from "../contracts/RaylsHook.sol";
 import { IERC20Minimal } from "@uniswap/v4-core/src/interfaces/external/IERC20Minimal.sol";
-import { console } from "forge-std/console.sol";
-import "forge-std/StdJson.sol";
 
 import { SuitabilityAssessmentVerifier } from "../contracts/SuitabilityAssessmentVerifier.sol";
 
@@ -41,44 +41,64 @@ contract RaylsHookTest is Test, Deployers {
     Currency currency1;
 
     PoolKey poolKey;
-
-    RaylsHook hook;
-    SuitabilityAssessmentVerifier suitabilityVerifier;
+    Suitability hook;
     PoolId poolId;
 
     uint256 tokenId;
     int24 tickLower;
     int24 tickUpper;
 
-    function loadProof(string memory fileName)
+    /// @dev Converte uma célula JSON (que pode ser número, ou string "0x.."/"123..") para uint.
+    function _readUintFlexible(string memory json, string memory pointer) internal returns (uint256 out) {
+        // Tenta ler como número direto (caso você mude para um JSON com números mesmo)
+        try this._readUint(json, pointer) returns (uint256 v) {
+            return v;
+        } catch {
+            // Se não for número, lê como string e usa vm.parseUint (aceita "0x..." ou decimal)
+            string memory s = json.readString(pointer);
+            return vm.parseUint(s);
+        }
+    }
+
+    // Wrapper separado porque stdJson.readUint é uma função "internal" via using-for e
+    // o try/catch acima precisa de algo externo para diferenciar fallback.
+    function _readUint(string memory json, string memory pointer) external view returns (uint256) {
+        return json.readUint(pointer);
+    }
+
+    function loadProof()
         public
         returns (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals)
     {
-        // read the proof.json file
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, fileName);
+
+        // 👉 use o arquivo que preferir; todos funcionam:
+        // string memory path = string.concat(root, "/packages/foundry/solidityInputs.json");        // hex em string
+        // string memory path = string.concat(root, "/packages/foundry/solidityInputs.ui.json");     // hex em string (UI)
+        // string memory path = string.concat(root, "/packages/foundry/solidityInputs.decimal.json"); // decimal em string
+        // Se os testes rodam dentro de packages/foundry, você pode apontar relativo:
+        string memory path = string.concat(root, "/solidityInputs.json");
+
         string memory json = vm.readFile(path);
 
-        // parse pA
-        pA = [json.readUint("[0][0]"), json.readUint("[0][1]")];
+        // pA
+        pA[0] = _readUintFlexible(json, "[0][0]");
+        pA[1] = _readUintFlexible(json, "[0][1]");
 
-        // parse pB
-        pB = [
-            [json.readUint("[1][0][0]"), json.readUint("[1][0][1]")],
-            [json.readUint("[1][1][0]"), json.readUint("[1][1][1]")]
-        ];
+        // pB (já no layout Solidity [[bx1,bx0],[by1,by0]] gerado pelo pipeline)
+        pB[0][0] = _readUintFlexible(json, "[1][0][0]");
+        pB[0][1] = _readUintFlexible(json, "[1][0][1]");
+        pB[1][0] = _readUintFlexible(json, "[1][1][0]");
+        pB[1][1] = _readUintFlexible(json, "[1][1][1]");
 
-        // parse pC
-        pC = [json.readUint("[2][0]"), json.readUint("[2][1]")];
+        // pC
+        pC[0] = _readUintFlexible(json, "[2][0]");
+        pC[1] = _readUintFlexible(json, "[2][1]");
 
-        // parse pubSignals
-        pubSignals = [
-            json.readUint("[3][0]"),
-            json.readUint("[3][1]"),
-            json.readUint("[3][2]"),
-            json.readUint("[3][3]"),
-            json.readUint("[3][4]")
-        ];
+        // pubSignals (fixo 5)
+        for (uint256 i = 0; i < 5; i++) {
+            pubSignals[i] = _readUintFlexible(json, string.concat("[3][", vm.toString(i), "]"));
+        }
 
         emit log_named_uint("pA[0]", pA[0]);
         emit log_named_uint("pA[1]", pA[1]);
@@ -86,30 +106,26 @@ contract RaylsHookTest is Test, Deployers {
     }
 
     function setUp() public {
-        // Deploys all required artifacts.
         deployArtifacts();
-
-        suitabilityVerifier = new SuitabilityAssessmentVerifier();
-
         (currency0, currency1) = deployCurrencyPair();
 
-        // Deploy the hook to an address with the correct flags
+        // Deploy o hook com as flags corretas
         address flags = address(
             uint160(
                 Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG
                     | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG
-            ) ^ (0x4444 << 144) // Namespace the hook to avoid collisions
+            ) ^ (0x4444 << 144)
         );
-        bytes memory constructorArgs = abi.encode(poolManager, suitabilityVerifier); // Add all the necessary constructor arguments from the hook
-        deployCodeTo("RaylsHook.sol:RaylsHook", constructorArgs, flags);
-        hook = RaylsHook(flags);
+        bytes memory constructorArgs = abi.encode(poolManager);
+        deployCodeTo("Suitability.sol:Suitability", constructorArgs, flags);
+        hook = Suitability(flags);
 
-        // Create the pool
+        // Pool
         poolKey = PoolKey(currency0, currency1, 3000, 60, IHooks(address(hook)));
         poolId = poolKey.toId();
         poolManager.initialize(poolKey, Constants.SQRT_PRICE_1_1);
 
-        // Provide full-range liquidity to the pool
+        // Liquidez full-range
         tickLower = TickMath.minUsableTick(poolKey.tickSpacing);
         tickUpper = TickMath.maxUsableTick(poolKey.tickSpacing);
 
@@ -134,7 +150,7 @@ contract RaylsHookTest is Test, Deployers {
             Constants.ZERO_BYTES
         );
 
-        // Fund proofSender with tokens
+        // Fund senders
         currency0.transfer(proofSender, 1e18);
         currency0.transfer(invalidProofSender, 1e18);
     }
@@ -143,12 +159,21 @@ contract RaylsHookTest is Test, Deployers {
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             loadProof("/SuitabilityAssessmentInputs.json");
 
-        bytes memory proofData = abi.encode(pA, pB, pC, pubSignals);
-        uint256 amountIn = 1e16;
+        // 👉 Deriva o wallet da prova
+        address proofWallet = address(uint160(pubSignals[2]));
+        // Garante que é diferente do inválido
+        assert(proofWallet != invalidProofSender);
 
+        // Garante saldo pro wallet correto (além do que foi enviado no setUp para proofSender)
+        uint256 amountIn = 1e16;
+        currency0.transfer(proofWallet, 1e18);
+
+        bytes memory proofData = abi.encode(pA, pB, pC, pubSignals);
+
+        // Caminho inválido: deve reverter
         vm.startPrank(invalidProofSender, invalidProofSender);
         IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
-        vm.expectRevert();
+        vm.expectRevert(); // revert lógico do hook
         swapRouter.swapExactTokensForTokens({
             amountIn: amountIn,
             amountOutMin: 0,
@@ -160,7 +185,8 @@ contract RaylsHookTest is Test, Deployers {
         });
         vm.stopPrank();
 
-        vm.startPrank(proofSender, proofSender);
+        // Caminho válido: usa o sender da prova
+        vm.startPrank(proofWallet, proofWallet);
         IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
 
         BalanceDelta swapDelta = swapRouter.swapExactTokensForTokens({
@@ -168,16 +194,13 @@ contract RaylsHookTest is Test, Deployers {
             amountOutMin: 0,
             zeroForOne: true,
             poolKey: poolKey,
-            hookData: proofData, // pass proof here
-            receiver: address(proofSender),
+            hookData: proofData, // passa a prova gerada
+            receiver: proofWallet,
             deadline: block.timestamp + 1
         });
         vm.stopPrank();
 
         assertEq(int256(swapDelta.amount0()), -int256(amountIn));
-
-        // assertEq(selector, IHooks.beforeSwap.selector, "selector mismatch");
-        // delta and fee are placeholder, assert if needed
     }
 
     function testSuitabilityAssessmentVerifier() public {

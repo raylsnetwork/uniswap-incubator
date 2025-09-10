@@ -38,7 +38,7 @@ export const SuitabilityQuestionnaire = () => {
 
   const handleSubmit = async () => {
     if (!isAllAnswered()) {
-      alert("Por favor, responda todas as perguntas antes de continuar.");
+      alert("Please answer all questions before continuing.");
       return;
     }
 
@@ -48,7 +48,7 @@ export const SuitabilityQuestionnaire = () => {
       setResult(result);
       setShowResult(true);
     } catch (error) {
-      console.error("Erro ao processar questionário:", error);
+      console.error("Error processing questionnaire:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -68,14 +68,27 @@ export const SuitabilityQuestionnaire = () => {
 
   const getRiskLevelColor = (level: string) => {
     switch (level) {
-      case "conservador":
+      case "conservative":
         return "text-green-600 bg-green-50 border-green-200";
-      case "moderado":
+      case "moderate":
         return "text-yellow-600 bg-yellow-50 border-yellow-200";
-      case "sofisticado":
+      case "sophisticated":
         return "text-red-600 bg-red-50 border-red-200";
       default:
         return "text-gray-600 bg-gray-50 border-gray-200";
+    }
+  };
+
+  const getRiskLevelDisplayName = (level: string) => {
+    switch (level) {
+      case "conservative":
+        return "Conservative";
+      case "moderate":
+        return "Moderate";
+      case "sophisticated":
+        return "Sophisticated";
+      default:
+        return level;
     }
   };
 
@@ -83,20 +96,20 @@ export const SuitabilityQuestionnaire = () => {
     return (
       <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
         <div className="text-center mb-6">
-          <h2 className="text-3xl font-bold mb-4 text-gray-900">Resultado do Questionário</h2>
+          <h2 className="text-3xl font-bold mb-4 text-gray-900">Questionnaire Results</h2>
           <div className={`inline-block px-6 py-3 rounded-full border-2 ${getRiskLevelColor(result.riskLevel)}`}>
-            <span className="text-lg font-semibold capitalize">{result.riskLevel}</span>
+            <span className="text-lg font-semibold capitalize">{getRiskLevelDisplayName(result.riskLevel)}</span>
           </div>
         </div>
 
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-700 mb-2">Perfil de Risco</h3>
+              <h3 className="font-semibold text-gray-700 mb-2">Risk Profile</h3>
               <p className="text-2xl font-bold text-gray-900">{result.riskProfile}/15</p>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-700 mb-2">Pontuação Total</h3>
+              <h3 className="font-semibold text-gray-700 mb-2">Total Score</h3>
               <p className="text-2xl font-bold text-gray-900">{result.totalScore}/33</p>
             </div>
           </div>
@@ -105,17 +118,17 @@ export const SuitabilityQuestionnaire = () => {
             className={`p-4 rounded-lg border-2 ${result.isSuitable ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
           >
             <h3 className="font-semibold mb-2 text-gray-900">
-              {result.isSuitable ? "✅ Perfil Adequado" : "❌ Perfil Inadequado"}
+              {result.isSuitable ? "✅ Suitable Profile" : "❌ Unsuitable Profile"}
             </h3>
             <p className="text-sm text-gray-700">
               {result.isSuitable
-                ? "Você pode prosseguir com investimentos de risco moderado a alto."
-                : "Recomendamos investimentos de baixo risco ou consultar um especialista."}
+                ? "You can proceed with moderate to high-risk investments."
+                : "We recommend low-risk investments or consulting a specialist."}
             </p>
           </div>
 
           <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-blue-800 mb-2">Suas Respostas</h3>
+            <h3 className="font-semibold text-blue-800 mb-2">Your Answers</h3>
             <div className="space-y-2">
               {questions.map((question, index) => (
                 <div key={question.id} className="text-sm">
@@ -133,7 +146,7 @@ export const SuitabilityQuestionnaire = () => {
               onClick={resetQuestionnaire}
               className="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 transition-colors"
             >
-              Refazer Questionário
+              Retake Questionnaire
             </button>
           </div>
         </div>
@@ -144,14 +157,14 @@ export const SuitabilityQuestionnaire = () => {
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       <div className="text-center mb-6">
-        <h2 className="text-3xl font-bold mb-2 text-gray-900">Questionário de Suitability</h2>
-        <p className="text-gray-700">Avalie seu perfil de investidor em 5 perguntas</p>
+        <h2 className="text-3xl font-bold mb-2 text-gray-900">Suitability Questionnaire</h2>
+        <p className="text-gray-700">Evaluate your investor profile in 5 questions</p>
       </div>
 
       {/* Progress Bar */}
       <div className="mb-6">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
-          <span>Progresso</span>
+          <span>Progress</span>
           <span>{Math.round(getProgressPercentage())}%</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
@@ -165,7 +178,7 @@ export const SuitabilityQuestionnaire = () => {
       {/* Current Question */}
       <div className="mb-6">
         <div className="text-sm text-gray-500 mb-2">
-          Pergunta {currentStep + 1} de {questions.length}
+          Question {currentStep + 1} of {questions.length}
         </div>
         <h3 className="text-xl font-semibold mb-4 text-gray-900">{questions[currentStep].text}</h3>
 
@@ -205,7 +218,7 @@ export const SuitabilityQuestionnaire = () => {
           disabled={currentStep === 0}
           className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700"
         >
-          Anterior
+          Previous
         </button>
 
         <div className="flex gap-2">
@@ -215,7 +228,7 @@ export const SuitabilityQuestionnaire = () => {
               disabled={answers[currentStep] === -1}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Próxima
+              Next
             </button>
           ) : (
             <button
@@ -223,7 +236,7 @@ export const SuitabilityQuestionnaire = () => {
               disabled={!isAllAnswered() || isSubmitting}
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Processando..." : "Verificar Suitability"}
+              {isSubmitting ? "Processing..." : "Verify Suitability"}
             </button>
           )}
         </div>

@@ -8,7 +8,7 @@ export interface Question {
 
 export interface SuitabilityResult {
   riskProfile: number; // 0-15 (soma de todas as respostas ponderadas)
-  riskLevel: "conservador" | "moderado" | "sofisticado";
+  riskLevel: "conservative" | "moderate" | "sophisticated";
   isSuitable: boolean;
   answers: number[];
   totalScore: number;

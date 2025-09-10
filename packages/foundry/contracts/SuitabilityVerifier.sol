@@ -1,166 +1,198 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+/*
+    Copyright 2021 0KIMS association.
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+    This file is generated with [snarkJS](https://github.com/iden3/snarkjs).
 
-/**
- * @title SuitabilityVerifier
- * @dev Contrato para verificar provas ZK de suitability assessment
- */
-contract SuitabilityVerifier is Ownable {
-    using Counters for Counters.Counter;
+    snarkJS is a free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    snarkJS is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+    or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
+    License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with snarkJS. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+pragma solidity >=0.7.0 <0.9.0;
+
+contract SuitabilityVerifier {
+    // Scalar field size
+    uint256 constant r    = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
+    // Base field size
+    uint256 constant q   = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+
+    // Verification Key data
+    uint256 constant alphax  = 4145810839146162117993443178439646719232152235948462831052348984386604886801;
+    uint256 constant alphay  = 12246964775902845036759361388667682203183414745723835116794645716312493569443;
+    uint256 constant betax1  = 18881757382187347605702184552881883093720251429296560858796864969888255456086;
+    uint256 constant betax2  = 19864247867260134968612195591946075710825489633145405070982220269936890086916;
+    uint256 constant betay1  = 12272408267624408778071567574175795538314894966682663847720050785932692460501;
+    uint256 constant betay2  = 15480398481928782618788031137331226237555085014801197441318527818835756246582;
+    uint256 constant gammax1 = 11559732032986387107991004021392285783925812861821192530917403151452391805634;
+    uint256 constant gammax2 = 10857046999023057135944570762232829481370756359578518086990519993285655852781;
+    uint256 constant gammay1 = 4082367875863433681332203403145435568316851327593401208105741076214120093531;
+    uint256 constant gammay2 = 8495653923123431417604973247489272438418190587263600148770280649306958101930;
+    uint256 constant deltax1 = 15816024785085413336879760010897647799097212549984792528729141571495169329746;
+    uint256 constant deltax2 = 14273011892784353460316388638120974116673736503251320396375191406923744332462;
+    uint256 constant deltay1 = 7876095759368575819011144497686018841337631088961492660355385034655789055838;
+    uint256 constant deltay2 = 17464395329537682659800993141131829735136199947749551206725965420468259713880;
+
     
-    // Estrutura para armazenar dados da prova
-    struct Proof {
-        uint256[2] a;
-        uint256[2][2] b;
-        uint256[2] c;
-    }
+    uint256 constant IC0x = 16071487012346658991374672422885639711364129230492918656117023046504650728451;
+    uint256 constant IC0y = 9426444446460503734828093669665735742225406882419817923334866284752423490041;
     
-    // Estrutura para armazenar dados públicos
-    struct PublicInputs {
-        uint256 threshold;
-        uint256 riskProfile;
-        uint256 isSuitable;
-    }
+    uint256 constant IC1x = 6459063230490657133655448344243512555338123791712893375466825501702213271185;
+    uint256 constant IC1y = 13302678838572298606247464747130905400442304979242388404412595459132727993187;
     
-    // Mapeamento para armazenar verificações de suitability por endereço
-    mapping(address => bool) public userSuitability;
+    uint256 constant IC2x = 13990990688197460076068492165179327422419778620786418320256889898053917383660;
+    uint256 constant IC2y = 12272740071180113741954289940815862936179417420732819410360379595342459627554;
     
-    // Contador para rastrear verificações
-    Counters.Counter private _verificationCounter;
+    uint256 constant IC3x = 9324796359171988864985571109195329183242549955644660817932934436907810083556;
+    uint256 constant IC3y = 4121744641156531089387188177345111926960357811038938596169752440058782662797;
     
-    // Eventos
-    event SuitabilityVerified(
-        address indexed user,
-        uint256 threshold,
-        uint256 riskProfile,
-        bool isSuitable,
-        uint256 verificationId
-    );
+    uint256 constant IC4x = 11844335797977851798752750555520795247186765598910959275710130117412290024986;
+    uint256 constant IC4y = 9776941464541032597988196133137421407757346040444383476237164533401943264230;
     
-    event SuitabilityRevoked(address indexed user, uint256 verificationId);
+    uint256 constant IC5x = 13484872813948161821738237573047205462250352545646845945627379007319202753539;
+    uint256 constant IC5y = 15897322138291413678826694167878742152192793581196671236963975502048096287912;
     
-    // Chave de verificação (será substituída pela chave real após setup)
-    // Esta é uma chave de exemplo - deve ser substituída pela chave real
-    uint256 constant vk_alpha1_x = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_alpha1_y = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_beta2_x1 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_beta2_x2 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_beta2_y1 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_beta2_y2 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_gamma2_x1 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_gamma2_x2 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_gamma2_y1 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_gamma2_y2 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_delta2_x1 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_delta2_x2 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_delta2_y1 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    uint256 constant vk_delta2_y2 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-    
-    // IC (Input Commitment) - será substituído pelos valores reais
-    uint256[2] public ic = [
-        0x1234567890123456789012345678901234567890123456789012345678901234,
-        0x1234567890123456789012345678901234567890123456789012345678901234
-    ];
-    
-    /**
-     * @dev Verifica uma prova ZK de suitability
-     * @param proof A prova ZK
-     * @param publicInputs Os dados públicos da prova
-     */
-    function verifySuitability(
-        Proof calldata proof,
-        PublicInputs calldata publicInputs
-    ) external returns (bool) {
-        // Verificar se a prova é válida
-        require(verifyProof(proof, publicInputs), "Invalid ZK proof");
-        
-        // Verificar se o perfil de risco está dentro dos limites
-        require(publicInputs.riskProfile <= 10, "Risk profile out of bounds");
-        require(publicInputs.threshold <= 10, "Threshold out of bounds");
-        
-        // Verificar se o resultado é consistente
-        bool expectedSuitable = publicInputs.riskProfile >= publicInputs.threshold;
-        require(publicInputs.isSuitable == (expectedSuitable ? 1 : 0), "Inconsistent suitability result");
-        
-        // Marcar o usuário como adequado se a prova for válida
-        userSuitability[msg.sender] = publicInputs.isSuitable == 1;
-        
-        // Incrementar contador
-        _verificationCounter.increment();
-        
-        // Emitir evento
-        emit SuitabilityVerified(
-            msg.sender,
-            publicInputs.threshold,
-            publicInputs.riskProfile,
-            publicInputs.isSuitable == 1,
-            _verificationCounter.current()
-        );
-        
-        return publicInputs.isSuitable == 1;
-    }
-    
-    /**
-     * @dev Verifica se um endereço tem suitability aprovada
-     * @param user Endereço do usuário
-     * @return bool True se o usuário tem suitability aprovada
-     */
-    function isUserSuitable(address user) external view returns (bool) {
-        return userSuitability[user];
-    }
-    
-    /**
-     * @dev Revoga a suitability de um usuário (apenas owner)
-     * @param user Endereço do usuário
-     */
-    function revokeSuitability(address user) external onlyOwner {
-        require(userSuitability[user], "User is not suitable");
-        
-        userSuitability[user] = false;
-        _verificationCounter.increment();
-        
-        emit SuitabilityRevoked(user, _verificationCounter.current());
-    }
-    
-    /**
-     * @dev Retorna o número total de verificações
-     * @return uint256 Número de verificações
-     */
-    function getVerificationCount() external view returns (uint256) {
-        return _verificationCounter.current();
-    }
-    
-    /**
-     * @dev Função interna para verificar a prova ZK
-     * @param proof A prova ZK
-     * @param publicInputs Os dados públicos
-     * @return bool True se a prova é válida
-     */
-    function verifyProof(
-        Proof calldata proof,
-        PublicInputs calldata publicInputs
-    ) internal view returns (bool) {
-        // Esta é uma implementação simplificada
-        // Em produção, você deve usar a implementação real do SnarkJS
-        // que inclui as operações de pairing e verificação completa
-        
-        // Por enquanto, retornamos true para demonstração
-        // Em implementação real, você deve:
-        // 1. Calcular o hash dos inputs públicos
-        // 2. Verificar a equação de pairing
-        // 3. Retornar true apenas se a verificação passar
-        
-        return true;
-    }
-    
-    /**
-     * @dev Atualiza a chave de verificação (apenas owner)
-     * @param newIc Nova chave de verificação
-     */
-    function updateVerificationKey(uint256[2] calldata newIc) external onlyOwner {
-        ic = newIc;
-    }
-}
+ 
+    // Memory data
+    uint16 constant pVk = 0;
+    uint16 constant pPairing = 128;
+
+    uint16 constant pLastMem = 896;
+
+    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[5] calldata _pubSignals) public view returns (bool) {
+        assembly {
+            function checkField(v) {
+                if iszero(lt(v, r)) {
+                    mstore(0, 0)
+                    return(0, 0x20)
+                }
+            }
+            
+            // G1 function to multiply a G1 value(x,y) to value in an address
+            function g1_mulAccC(pR, x, y, s) {
+                let success
+                let mIn := mload(0x40)
+                mstore(mIn, x)
+                mstore(add(mIn, 32), y)
+                mstore(add(mIn, 64), s)
+
+                success := staticcall(sub(gas(), 2000), 7, mIn, 96, mIn, 64)
+
+                if iszero(success) {
+                    mstore(0, 0)
+                    return(0, 0x20)
+                }
+
+                mstore(add(mIn, 64), mload(pR))
+                mstore(add(mIn, 96), mload(add(pR, 32)))
+
+                success := staticcall(sub(gas(), 2000), 6, mIn, 128, pR, 64)
+
+                if iszero(success) {
+                    mstore(0, 0)
+                    return(0, 0x20)
+                }
+            }
+
+            function checkPairing(pA, pB, pC, pubSignals, pMem) -> isOk {
+                let _pPairing := add(pMem, pPairing)
+                let _pVk := add(pMem, pVk)
+
+                mstore(_pVk, IC0x)
+                mstore(add(_pVk, 32), IC0y)
+
+                // Compute the linear combination vk_x
+                
+                g1_mulAccC(_pVk, IC1x, IC1y, calldataload(add(pubSignals, 0)))
+                
+                g1_mulAccC(_pVk, IC2x, IC2y, calldataload(add(pubSignals, 32)))
+                
+                g1_mulAccC(_pVk, IC3x, IC3y, calldataload(add(pubSignals, 64)))
+                
+                g1_mulAccC(_pVk, IC4x, IC4y, calldataload(add(pubSignals, 96)))
+                
+                g1_mulAccC(_pVk, IC5x, IC5y, calldataload(add(pubSignals, 128)))
+                
+
+                // -A
+                mstore(_pPairing, calldataload(pA))
+                mstore(add(_pPairing, 32), mod(sub(q, calldataload(add(pA, 32))), q))
+
+                // B
+                mstore(add(_pPairing, 64), calldataload(pB))
+                mstore(add(_pPairing, 96), calldataload(add(pB, 32)))
+                mstore(add(_pPairing, 128), calldataload(add(pB, 64)))
+                mstore(add(_pPairing, 160), calldataload(add(pB, 96)))
+
+                // alpha1
+                mstore(add(_pPairing, 192), alphax)
+                mstore(add(_pPairing, 224), alphay)
+
+                // beta2
+                mstore(add(_pPairing, 256), betax1)
+                mstore(add(_pPairing, 288), betax2)
+                mstore(add(_pPairing, 320), betay1)
+                mstore(add(_pPairing, 352), betay2)
+
+                // vk_x
+                mstore(add(_pPairing, 384), mload(add(pMem, pVk)))
+                mstore(add(_pPairing, 416), mload(add(pMem, add(pVk, 32))))
+
+
+                // gamma2
+                mstore(add(_pPairing, 448), gammax1)
+                mstore(add(_pPairing, 480), gammax2)
+                mstore(add(_pPairing, 512), gammay1)
+                mstore(add(_pPairing, 544), gammay2)
+
+                // C
+                mstore(add(_pPairing, 576), calldataload(pC))
+                mstore(add(_pPairing, 608), calldataload(add(pC, 32)))
+
+                // delta2
+                mstore(add(_pPairing, 640), deltax1)
+                mstore(add(_pPairing, 672), deltax2)
+                mstore(add(_pPairing, 704), deltay1)
+                mstore(add(_pPairing, 736), deltay2)
+
+
+                let success := staticcall(sub(gas(), 2000), 8, _pPairing, 768, _pPairing, 0x20)
+
+                isOk := and(success, mload(_pPairing))
+            }
+
+            let pMem := mload(0x40)
+            mstore(0x40, add(pMem, pLastMem))
+
+            // Validate that all evaluations ∈ F
+            
+            checkField(calldataload(add(_pubSignals, 0)))
+            
+            checkField(calldataload(add(_pubSignals, 32)))
+            
+            checkField(calldataload(add(_pubSignals, 64)))
+            
+            checkField(calldataload(add(_pubSignals, 96)))
+            
+            checkField(calldataload(add(_pubSignals, 128)))
+            
+            checkField(calldataload(add(_pubSignals, 160)))
+            
+
+            // Validate all evaluations
+            let isValid := checkPairing(_pA, _pB, _pC, _pubSignals, pMem)
+
+            mstore(0, isValid)
+             return(0, 0x20)
+         }
+     }
+ }
