@@ -66,7 +66,6 @@ Run smart contract test with `yarn foundry:test`
 - Edit your frontend homepage at `packages/nextjs/app/page.tsx`. For guidance on [routing](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) and configuring [pages/layouts](https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts) checkout the Next.js documentation.
 - Edit your deployment scripts in `packages/foundry/script`
 
-
 ## Documentation
 
 Visit our [docs](https://docs.scaffoldeth.io) to learn how to start building with Scaffold-ETH 2.
@@ -79,8 +78,12 @@ We welcome contributions to Scaffold-ETH 2!
 
 Please see [CONTRIBUTING.MD](https://github.com/scaffold-eth/scaffold-eth-2/blob/main/CONTRIBUTING.md) for more information and guidelines for contributing to Scaffold-ETH 2.
 
+snarkjs zkey export soliditycalldata public.json proof.json > solidityCalldata.txt
 
+./zk_pipeline.sh --new-proof
 
- snarkjs zkey export soliditycalldata public.json proof.json > solidityCalldata.txt
-
- ./zk_pipeline.sh --new-proof
+#Nuno: Steps to test
+./scripts/zk_pipeline.sh --circuit SuitabilityAssessment
+./scripts/zk_pipeline.sh --circuit PrivateSwapIntent
+#Go to foundry dir:
+forge test -vvvvvv test/RaylsHook.t.sol
