@@ -1,0 +1,48 @@
+# Dependências
+node_modules/
+yarn.lock
+package-lock.json
+
+# Arquivos de build do Circom
+circuits/*.r1cs
+circuits/*.wasm
+circuits/*.sym
+circuits/*.zkey
+circuits/verification_key.json
+circuits/SuitabilityAssessment_js/
+circuits/SuitabilityAssessment_cpp/
+circuits/*.ptau
+circuits/*.json
+artifacts/*
+
+# Powers of Tau
+pot/
+
+# Arquivos de prova e witness
+scripts/*.wtns
+scripts/proof.json
+scripts/public.json
+scripts/input.json
+
+# Arquivos de teste
+test/test_input.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db

@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   31337: {
     YourContract: {
-      address: "0x8ce361602b935680e8dec218b820ff5056beb7af",
+      address: "0xed1db453c3156ff3155a97ad217b3087d5dc5f6e",
       abi: [
         {
           type: "constructor",
@@ -193,7 +193,48 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 8,
+      deployedOnBlock: 13,
+    },
+    SuitabilityVerifier: {
+      address: "0x5fc8d32690cc91d4c39d9d3abcbd16989f875707",
+      abi: [
+        {
+          type: "function",
+          name: "verifyProof",
+          inputs: [
+            {
+              name: "_pA",
+              type: "uint256[2]",
+              internalType: "uint256[2]",
+            },
+            {
+              name: "_pB",
+              type: "uint256[2][2]",
+              internalType: "uint256[2][2]",
+            },
+            {
+              name: "_pC",
+              type: "uint256[2]",
+              internalType: "uint256[2]",
+            },
+            {
+              name: "_pubSignals",
+              type: "uint256[5]",
+              internalType: "uint256[5]",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "bool",
+              internalType: "bool",
+            },
+          ],
+          stateMutability: "view",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 14,
     },
   },
 } as const;
