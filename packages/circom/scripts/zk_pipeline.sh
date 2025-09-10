@@ -34,15 +34,17 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CIRCUITS_DIR="$PKG_ROOT/circuits"
-POT_DIR="$PKG_ROOT/pot"
 FOUNDRY_DIR="$PKG_ROOT/../foundry"
+FOUNDRY_INPUTS_DIR="$PKG_ROOT/../foundry/inputs"
 VERIFIER_NAME="${CIRCUIT_NAME}Verifier.sol"
 CONTRACT_VERIFIER="$FOUNDRY_DIR/contracts/$VERIFIER_NAME"
 OUT_DIR="$FOUNDRY_DIR" # onde salvamos os artefatos de chamada
+ARTIFACTS_DIR="$PKG_ROOT/artifacts"
+POT_DIR="$ARTIFACTS_DIR/pot"
 
 INPUT_JSON="$SCRIPT_DIR/${CIRCUIT_NAME}_input.json"
-R1CS_PATH="$CIRCUITS_DIR/${CIRCUIT_NAME}.r1cs"
-WASM_DIR="$CIRCUITS_DIR/${CIRCUIT_NAME}_js"
+R1CS_PATH="$ARTIFACTS_DIR/${CIRCUIT_NAME}.r1cs"
+WASM_DIR="$ARTIFACTS_DIR/${CIRCUIT_NAME}_js"
 WASM_PATH="$WASM_DIR/${CIRCUIT_NAME}.wasm"
 GEN_WITNESS_JS="$WASM_DIR/generate_witness.js"
 
@@ -54,9 +56,9 @@ ZKEY0="$POT_DIR/${CIRCUIT_NAME}_0000.zkey"
 ZKEY1="$POT_DIR/${CIRCUIT_NAME}_0001.zkey"
 VKEY_JSON="$POT_DIR/${CIRCUIT_NAME}_verification_key.json"
 
-WITNESS="$PKG_ROOT/${CIRCUIT_NAME}_witness.wtns"
-PROOF_JSON="$PKG_ROOT/${CIRCUIT_NAME}_proof.json"
-PUBLIC_JSON="$PKG_ROOT/${CIRCUIT_NAME}_public.json"
+WITNESS="$ARTIFACTS_DIR/${CIRCUIT_NAME}_witness.wtns"
+PROOF_JSON="$ARTIFACTS_DIR/${CIRCUIT_NAME}_proof.json"
+PUBLIC_JSON="$ARTIFACTS_DIR/${CIRCUIT_NAME}_public.json"
 
 CALLDATA_TXT="$OUT_DIR/solidityCalldata.txt"
 INPUTS_HEX_JSON="$OUT_DIR/solidityInputs.json"
@@ -82,7 +84,7 @@ log() { printf "\033[1;36m[zk]\033[0m %s\n" "$*"; }
 # ─────────────────────────────
 # Pre-checks
 # ─────────────────────────────
-mkdir -p "$POT_DIR" "$OUT_DIR"
+mkdir -p "$POT_DIR" "$OUT_DIR" "$ARTIFACTS_DIR" "$FOUNDRY_INPUTS_DIR"
 if [ ! -f "$INPUT_JSON" ]; then
   echo "❌ input.json não encontrado em $INPUT_JSON"; exit 1
 fi
@@ -96,7 +98,7 @@ if [ "$ONLYNEWPROOF" = false ]; then
     --r1cs --wasm --sym --c \
     -l "$PKG_ROOT" \
     -l "$PKG_ROOT/node_modules/circomlib/circuits" \
-    -o "$CIRCUITS_DIR"
+    -o "$ARTIFACTS_DIR"
 fi
 
 # ─────────────────────────────
@@ -143,7 +145,7 @@ else
 
     # Renomeio compatível com macOS/BSD
     if grep -q 'contract Groth16Verifier' "$CONTRACT_VERIFIER"; then
-      perl -0777 -pe 's/contract Groth16Verifier/contract SuitabilityVerifier/g' -i "$CONTRACT_VERIFIER"
+      perl -0777 -pe "s/contract Groth16Verifier/contract ${CIRCUIT_NAME}Verifier/g" -i "$CONTRACT_VERIFIER"
     fi
   else
     log "Reutilizando ZKey existente → $ZKEY1"
@@ -153,7 +155,7 @@ else
     log "Reexportando Solidity verifier do ZKEY atual → $CONTRACT_VERIFIER"
     "$SNARKJS_BIN" zkey export solidityverifier "$ZKEY1" "$CONTRACT_VERIFIER"
     if grep -q 'contract Groth16Verifier' "$CONTRACT_VERIFIER"; then
-      perl -0777 -pe 's/contract Groth16Verifier/contract SuitabilityVerifier/g' -i "$CONTRACT_VERIFIER"
+      perl -0777 -pe "s/contract Groth16Verifier/contract ${CIRCUIT_NAME}Verifier/g" -i "$CONTRACT_VERIFIER"
     fi
   fi
 fi
@@ -175,12 +177,11 @@ log "✅ Prova verificada com sucesso!"
 log "Exportando solidityCalldata (hex) → $CALLDATA_TXT"
 "$SNARKJS_BIN" zkey export soliditycalldata "$PUBLIC_JSON" "$PROOF_JSON" > "$CALLDATA_TXT"
 
-  log Renaming verifier contract to ${CIRCUIT_NAME}Verifier…
-  sed -i "s/contract Groth16Verifier/contract ${CIRCUIT_NAME}Verifier/" "$CONTRACT_VERIFIER"
-fi
+#log Renaming verifier contract to ${CIRCUIT_NAME}Verifier…
+#sed -i "s/contract Groth16Verifier/contract ${CIRCUIT_NAME}Verifier/" "$CONTRACT_VERIFIER"
 
 log criando inputs Solidity…
-"$SNARKJS_BIN" zkey export soliditycalldata "$PUBLIC_JSON" "$PROOF_JSON" | sed '1s/^/[/; $s/$/]/' > "$FOUNDRY_DIR/${CIRCUIT_NAME}Inputs.json" 
+"$SNARKJS_BIN" zkey export soliditycalldata "$PUBLIC_JSON" "$PROOF_JSON" | sed '1s/^/[/; $s/$/]/' > "$FOUNDRY_INPUTS_DIR/${CIRCUIT_NAME}Inputs.json" 
 
 # Lucas part:
 # 5.2 solidityInputs.json (HEX) a partir do calldata

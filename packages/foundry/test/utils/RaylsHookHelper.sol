@@ -26,11 +26,15 @@ library RaylsHookHelper {
 
         bytes memory result = vm.ffi(cmds);
 
-        for (uint256 i = 0; i < result.length; i++) {
-            console.logUint(uint8(result[i]));
-        }
-
         output = parseHexStringToUint(string(result));
+    }
+
+    function encryptValuesForAuditor(Vm vm) public {
+        string[] memory cmds = new string[](2);
+        cmds[0] = "node";
+        cmds[1] = "../encryption/encrypt.js";
+
+        vm.ffi(cmds);
     }
 
     function loadSuitabilityProof(string memory json)

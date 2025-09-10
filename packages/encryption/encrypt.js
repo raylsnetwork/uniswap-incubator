@@ -22,14 +22,10 @@ function numberToBuffer(n, bytes = 32) {
 async function main() {
     // Public key for 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
   const pubKeyUncompressed = "0x048318535b54105d4a7aae60c08fc45f9687181b4fdfc625bd1a753fa7397fed753547f11ca8696646f2f3acb08e31016afac23e630c5d11f59f61fef57b0d2aa5"; 
-  // ⚠️ ethers v6 already gives uncompressed pubkey
-  console.log("Auditor Public Key:", pubKeyUncompressed);
 
   const jsonPath = path.resolve('../circom/scripts/PrivateSwapIntent_input.json');
   const raw = await fs.readFile(jsonPath, 'utf-8');
   const privateSwapInputs = JSON.parse(raw);
-  
-  console.log(privateSwapInputs);
 
   const senderBuf = ethers.getBytes(privateSwapInputs.sender); // Uint8Array
   const amountBuf = numberToBuffer(privateSwapInputs.amountIn);
@@ -50,14 +46,6 @@ async function main() {
     K
   );
 
-  console.log("Ciphertext (hex):", ciphertext.toString("hex"));
-  console.log("Encrypted Key for Auditor:", {
-    iv: encKeyForAuditor.iv.toString("hex"),
-    ephemPublicKey: encKeyForAuditor.ephemPublicKey.toString("hex"),
-    ciphertext: encKeyForAuditor.ciphertext.toString("hex"),
-    mac: encKeyForAuditor.mac.toString("hex"),
-  });
-
   const encryptedBuffer = Buffer.concat([
     encKeyForAuditor.iv,             // 16 bytes
     encKeyForAuditor.ephemPublicKey, // 65 bytes
@@ -69,17 +57,12 @@ async function main() {
  const encKeyForAuditorBytes = ethers.getBytes(encryptedBuffer);
  const ciphertextBytes = ethers.getBytes("0x" + ciphertext.toString("hex"));
 
- console.log("encKeyForAuditor (BytesLike):", encKeyForAuditorBytes);
- console.log("ciphertext (BytesLike):", ciphertextBytes);
-
  const jsonData = {
     encKeyForAuditor: ethers.hexlify(encKeyForAuditorBytes),
     ciphertext: ethers.hexlify(ciphertextBytes)
   };
   
-  await fs.writeFile("../foundry/encryptedPayload.json", JSON.stringify(jsonData, null, 2));
-  console.log("✅ Saved encryptedPayload.json for storeCommitment:");
-  console.log(jsonData);
+  await fs.writeFile("../foundry/inputs/encryptedPayload.json", JSON.stringify(jsonData, null, 2));
 }
 
 main().catch(console.error);
