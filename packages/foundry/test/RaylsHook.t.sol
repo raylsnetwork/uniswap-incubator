@@ -36,8 +36,12 @@ contract RaylsHookTest is Test, Deployers {
     using CurrencyLibrary for Currency;
     using StateLibrary for IPoolManager;
 
-    address proofSender = 0x1234567890AbcdEF1234567890aBcdef12345678;
     address invalidProofSender = 0x876543210FedCBa9876543210fedcBA987654321;
+
+    // Private key for proofSender for wallet 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+    uint256 proofSenderPk = 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
+    address proofSender = vm.addr(proofSenderPk);
+
     // Private key for Auditor for wallet 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
     string auditorPk = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
@@ -187,13 +191,13 @@ contract RaylsHookTest is Test, Deployers {
         assertTrue(ok); // this will fail if verifyProof==false
     }
 
-    function testPrivateSwap() public {
+    function testAPrivateSwap() public {
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             RaylsHookHelper.loadPrivateSwapIntentProof(jsonPrivateSwap);
 
         bytes memory proofData = abi.encode(pA, pB, pC, pubSignals);
-        uint256 amountIn = 1e16;
-        IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
+        uint256 amountIn = pubSignals[1];
+        uint256 timestamp = pubSignals[4];
 
         string memory encKeyForAuditorStr = jsonEncryptedPayload.readString(".encKeyForAuditor");
         string memory ciphertextStr = jsonEncryptedPayload.readString(".ciphertext");
@@ -203,7 +207,7 @@ contract RaylsHookTest is Test, Deployers {
 
         uint256 id = uint256(
             keccak256(
-                abi.encodePacked(
+                abi.encode(
                     pubSignals[0], // Poseidon hash of (amountIn, zeroForOne, sender, timestamp)
                     ciphertext, // AES-encrypted message optional
                     encKeyForAuditor // optional: can be empty bytes
@@ -212,22 +216,29 @@ contract RaylsHookTest is Test, Deployers {
         );
 
         vm.startPrank(proofSender, proofSender);
-        hook.storeCommitment(id, ciphertext, encKeyForAuditor);
+        bytes memory permitSignature = RaylsHookHelper.buildPermitSignature(
+            vm, proofSenderPk, Currency.unwrap(currency0), timestamp, proofSender, address(hook), amountIn
+        );
+        hook.storeCommitment(poolKey, id, ciphertext, encKeyForAuditor, permitSignature);
+
+        // For now we just approve the swapRouter to spend the tokens
+        // IERC20Minimal(Currency.unwrap(currency0)).approve(address(hook), amountIn);
 
         // Move time forward but not enough to be able to execute the commitment
         vm.warp(pubSignals[4] - 1);
         bytes memory expectedRevert =
             abi.encodeWithSelector(RaylsHook.CommitmentNotReady.selector, pubSignals[4], block.timestamp);
         vm.expectRevert(expectedRevert);
-        hook.executeCommitment(id, proofData);
+        hook.executeCommitment(poolKey, id, proofData);
 
         // Move time forward to be able to execute the commitment
         vm.warp(pubSignals[4]);
-        hook.executeCommitment(id, proofData);
-
+        BalanceDelta delta = hook.executeCommitment(poolKey, id, proofData);
+        assertEq(int256(delta.amount0()), -int256(amountIn));
         vm.stopPrank();
 
-        (bytes memory onChainCiphertext, bytes memory onChainEncKeyForAuditor,, bool executed) = hook.commitments(id);
+        (bytes memory onChainCiphertext, bytes memory onChainEncKeyForAuditor,, bool executed,) =
+            hook.commitments(poolKey.toId(), id);
 
         assertEq(executed, true);
         assertEq(onChainCiphertext, ciphertext);

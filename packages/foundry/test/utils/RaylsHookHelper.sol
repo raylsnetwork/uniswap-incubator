@@ -4,6 +4,7 @@ pragma solidity ^0.8.21;
 import { console } from "forge-std/console.sol";
 import "forge-std/StdJson.sol";
 import { Vm } from "forge-std/Test.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 library RaylsHookHelper {
     using stdJson for string;
@@ -139,5 +140,45 @@ library RaylsHookHelper {
         if (c >= 65 && c <= 70) return c - 55; // 'A'-'F'
         if (c >= 97 && c <= 102) return c - 87; // 'a'-'f'
         revert("invalid hex char");
+    }
+
+    function splitSig(bytes memory sig) internal pure returns (uint8 v, bytes32 r, bytes32 s) {
+        require(sig.length == 65, "bad sig length");
+
+        assembly {
+            r := mload(add(sig, 32))
+            s := mload(add(sig, 64))
+            v := byte(0, mload(add(sig, 96)))
+        }
+    }
+
+    function buildPermitSignature(
+        Vm vm,
+        uint256 privateKey,
+        address token,
+        uint256 timestamp,
+        address sender,
+        address receiver,
+        uint256 amount
+    ) public view returns (bytes memory) {
+        uint256 nonce = IERC20Permit(token).nonces(sender);
+        uint256 deadline = timestamp + 1 days;
+
+        // EIP-712 domain separator
+        bytes32 DOMAIN_SEPARATOR = IERC20Permit(token).DOMAIN_SEPARATOR();
+
+        // Permit typehash (same as OZ ERC20Permit)
+        bytes32 PERMIT_TYPEHASH =
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+        // Build struct hash
+        bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, sender, address(receiver), amount, nonce, deadline));
+
+        // Final digest (EIP-712)
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
+
+        // Sign with Foundry’s vm.sign
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        return abi.encodePacked(r, s, v);
     }
 }
