@@ -35,6 +35,16 @@ contract RaylsHook is BaseHook {
     event CommitmentStored(uint256 id, address indexed sender);
     event Revealed(uint256 id, address indexed revealer);
 
+    // Errors
+    error CommitmentMismatch(bytes pubId, uint256 expectedId);
+    error NotMarkedAsExecuted(uint256 signal);
+    error CommitmentNotReady(uint256 notBefore, uint256 currentTime);
+    error InvalidWallet(address provided, address expected);
+    error InvalidSuitabilityProof();
+    error AlreadyExecuted(uint256 id);
+    error InvalidPrivateSwapIntentProof();
+    error AlreadyExists(uint256 id);
+
     struct Commitment {
         bytes ciphertext; // AES/GCM ciphertext (includes tag)
         bytes encKeyForAuditor; // encrypted symmetric key for auditor
@@ -83,10 +93,14 @@ contract RaylsHook is BaseHook {
         uint256 walletInProof = pubSignals[2]; // index 2 because it's the 3rd public signal
         address origin = _determineOrigin(msg.sender);
 
-        require(walletInProof == uint256(uint160(origin)), "Invalid wallet for this proof");
+        if (walletInProof != uint256(uint160(origin))) {
+            revert InvalidWallet(address(uint160(walletInProof)), origin);
+        }
 
         bool suitabilityOk = suitabilityVerifier.verifyProof(pA, pB, pC, pubSignals);
-        require(suitabilityOk, "Invalid Suitability proof");
+        if (!suitabilityOk) {
+            revert InvalidSuitabilityProof();
+        }
 
         return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
@@ -136,7 +150,9 @@ contract RaylsHook is BaseHook {
     }
 
     function executeCommitment(uint256 id, bytes calldata data) external {
-        require(!commitments[id].executed, "already executed");
+        if (commitments[id].executed) {
+            revert AlreadyExecuted(id);
+        }
 
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             abi.decode(data, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
@@ -147,17 +163,30 @@ contract RaylsHook is BaseHook {
             commitments[id].ciphertext,
             commitments[id].encKeyForAuditor
         );
-        require(uint256(keccak256(pubId)) == id, "commitment mismatch");
-        require(pubSignals[2] == 1, "Not marked as executed");
-        require(pubSignals[4] <= block.timestamp, "Commitment can not be executed yet");
+
+        if (uint256(keccak256(pubId)) != id) {
+            revert CommitmentMismatch(pubId, id);
+        }
+
+        if (pubSignals[2] != 1) {
+            revert NotMarkedAsExecuted(pubSignals[2]);
+        }
+
+        if (pubSignals[4] > block.timestamp) {
+            revert CommitmentNotReady(pubSignals[4], block.timestamp);
+        }
 
         bool privateVerifierOk = privateSwapIntentVerifier.verifyProof(pA, pB, pC, pubSignals);
-        require(privateVerifierOk, "Invalid PrivateSwapIntent proof");
+        if (!privateVerifierOk) {
+            revert InvalidPrivateSwapIntentProof();
+        }
         commitments[id].executed = true;
     }
 
     function storeCommitment(uint256 id, bytes calldata ciphertext, bytes calldata encKeyForAuditor) external {
-        require(!commitments[id].exists, "already exists");
+        if (commitments[id].exists) {
+            revert AlreadyExists(id);
+        }
         commitments[id] =
             Commitment({ ciphertext: ciphertext, encKeyForAuditor: encKeyForAuditor, exists: true, executed: false });
         emit CommitmentStored(id, msg.sender);

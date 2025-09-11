@@ -201,14 +201,11 @@ contract RaylsHookTest is Test, Deployers {
         bytes memory encKeyForAuditor = RaylsHookHelper.hexStringToBytes(encKeyForAuditorStr);
         bytes memory ciphertext = RaylsHookHelper.hexStringToBytes(ciphertextStr);
 
-        vm.warp(pubSignals[4]);
-        console.log("Block timestamp:", block.timestamp);
-
         uint256 id = uint256(
             keccak256(
                 abi.encodePacked(
-                    pubSignals[0], // Poseidon hash of (amount, recipient, nonce)
-                    ciphertext, // AES-encrypted message (always present)
+                    pubSignals[0], // Poseidon hash of (amountIn, zeroForOne, sender, timestamp)
+                    ciphertext, // AES-encrypted message optional
                     encKeyForAuditor // optional: can be empty bytes
                 )
             )
@@ -216,7 +213,18 @@ contract RaylsHookTest is Test, Deployers {
 
         vm.startPrank(proofSender, proofSender);
         hook.storeCommitment(id, ciphertext, encKeyForAuditor);
+
+        // Move time forward but not enough to be able to execute the commitment
+        vm.warp(pubSignals[4] - 1);
+        bytes memory expectedRevert =
+            abi.encodeWithSelector(RaylsHook.CommitmentNotReady.selector, pubSignals[4], block.timestamp);
+        vm.expectRevert(expectedRevert);
         hook.executeCommitment(id, proofData);
+
+        // Move time forward to be able to execute the commitment
+        vm.warp(pubSignals[4]);
+        hook.executeCommitment(id, proofData);
+
         vm.stopPrank();
 
         (bytes memory onChainCiphertext, bytes memory onChainEncKeyForAuditor,, bool executed) = hook.commitments(id);
