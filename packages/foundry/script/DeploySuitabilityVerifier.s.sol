@@ -23,7 +23,7 @@ contract DeploySuitabilityVerifier is Script {
         
         // Salvar endereço do contrato para uso posterior
         string memory deploymentData = vm.toString(address(suitabilityVerifier));
-        vm.writeFile("deployments/SuitabilityVerifier.txt", deploymentData);
+        vm.writeFile("deployments/SuitabilityAssessmentVerifier.txt", deploymentData);
         
         console.log("Deployment address saved to: deployments/SuitabilityVerifier.txt");
     }

@@ -25,7 +25,7 @@ import { IERC20Minimal } from "@uniswap/v4-core/src/interfaces/external/IERC20Mi
 import { console } from "forge-std/console.sol";
 import "forge-std/StdJson.sol";
 
-import { SuitabilityAssessmentVerifier } from "../contracts/SuitabilityAssessmentVerifier.sol";
+import { SuitabilityVerifier } from "../contracts/SuitabilityVerifier.sol";
 import { PrivateSwapIntentVerifier } from "../contracts/PrivateSwapIntentVerifier.sol";
 import { RaylsHookHelper } from "./utils/RaylsHookHelper.sol";
 
@@ -47,7 +47,7 @@ contract RaylsHookTest is Test, Deployers {
     PoolKey poolKey;
 
     RaylsHook hook;
-    SuitabilityAssessmentVerifier suitabilityVerifier;
+    SuitabilityVerifier suitabilityVerifier;
     PrivateSwapIntentVerifier privateSwapIntentVerifier;
     PoolId poolId;
 
@@ -77,7 +77,7 @@ contract RaylsHookTest is Test, Deployers {
         // Deploys all required artifacts.
         deployArtifacts();
 
-        suitabilityVerifier = new SuitabilityAssessmentVerifier();
+        suitabilityVerifier = new SuitabilityVerifier();
         privateSwapIntentVerifier = new PrivateSwapIntentVerifier();
 
         (currency0, currency1) = deployCurrencyPair();

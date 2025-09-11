@@ -6,7 +6,7 @@ set -euo pipefail
 # ─────────────────────────────
 ONLYNEWPROOF=false
 FORCE_SETUP=false
-CIRCUIT_NAME="SuitabilityAssessment"
+CIRCUIT_NAME="Suitability"
 ENTROPY="$(openssl rand -hex 32 || echo 'deadbeef')"
 
 while [[ $# -gt 0 ]]; do
