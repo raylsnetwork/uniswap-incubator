@@ -62,8 +62,8 @@ contract RaylsHookTest is Test, Deployers {
     function setUp() public {
         // Get all necessary json files
         string memory root = vm.projectRoot();
-        // Get the proof for SuitabilityAssessment
-        string memory pathSuitability = string.concat(root, "/inputs/SuitabilityAssessmentInputs.json");
+        // Get the proof for Suitability
+        string memory pathSuitability = string.concat(root, "/inputs/SuitabilityInputs.json");
         jsonSuitability = vm.readFile(pathSuitability);
 
         // Get the proof for PrivateSwapIntent
@@ -169,7 +169,7 @@ contract RaylsHookTest is Test, Deployers {
         // delta and fee are placeholder, assert if needed
     }
 
-    function testSuitabilityAssessmentVerifier() public view {
+    function testSuitabilityVerifier() public view {
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             RaylsHookHelper.loadSuitabilityProof(jsonSuitability);
 
