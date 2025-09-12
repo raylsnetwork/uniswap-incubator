@@ -226,7 +226,7 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
 
         // Making sure we are executing the right commitment
         bytes memory pubId = abi.encode(
-            pubSignals[0], // Poseidon hash of (amount, recipient, nonce)
+            pubSignals[0], // Poseidon hash
             commitment.ciphertextForAuditor
         );
 
