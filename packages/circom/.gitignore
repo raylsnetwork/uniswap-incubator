@@ -9,8 +9,8 @@ circuits/*.wasm
 circuits/*.sym
 circuits/*.zkey
 circuits/verification_key.json
-circuits/SuitabilityAssessment_js/
-circuits/SuitabilityAssessment_cpp/
+circuits/Suitability_js/
+circuits/Suitability_cpp/
 circuits/*.ptau
 circuits/*.json
 artifacts/*

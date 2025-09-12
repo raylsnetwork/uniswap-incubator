@@ -1,89 +1,250 @@
-# 🏗 Scaffold-ETH 2
+# 🪝 Rayls Hook - Uniswap Hook Incubator 6
 
 <h4 align="center">
-  <a href="https://docs.scaffoldeth.io">Documentation</a> |
-  <a href="https://scaffoldeth.io">Website</a>
+  <a href="#-architecture">Architecture</a> |
+  <a href="#-quick-start">Quick Start</a> |
+  <a href="#-roadmap">Roadmap</a> |
+  <a href="#-contributing">Contributing</a>
 </h4>
 
-🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Ethereum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
+<p align="center">
+  <img src="https://img.shields.io/badge/Scaffold--ETH%202-Base-blue" alt="Scaffold-ETH 2 Base">
+  <img src="https://img.shields.io/badge/Zero--Knowledge-Proofs-green" alt="Zero-Knowledge Proofs">
+  <img src="https://img.shields.io/badge/Uniswap%20v4-Hooks-orange" alt="Uniswap v4 Hooks">
+  <img src="https://img.shields.io/badge/TypeScript-Ready-blue" alt="TypeScript">
+</p>
 
-⚙️ Built using NextJS, RainbowKit, Foundry, Wagmi, Viem, and Typescript.
+🧪 **Rayls Hook** is a privacy-preserving investor suitability assessment system built on Uniswap v4 hooks. It allows users to prove their investment suitability without revealing their specific questionnaire responses using Zero-Knowledge Proofs.
 
-- ✅ **Contract Hot Reload**: Your frontend auto-adapts to your smart contract as you edit it.
-- 🪝 **[Custom hooks](https://docs.scaffoldeth.io/hooks/)**: Collection of React hooks wrapper around [wagmi](https://wagmi.sh/) to simplify interactions with smart contracts with typescript autocompletion.
-- 🧱 [**Components**](https://docs.scaffoldeth.io/components/): Collection of common web3 components to quickly build your frontend.
-- 🔥 **Burner Wallet & Local Faucet**: Quickly test your application with a burner wallet and local faucet.
-- 🔐 **Integration with Wallet Providers**: Connect to different wallet providers and interact with the Ethereum network.
+⚙️ Built using **Scaffold-ETH 2** as the foundation, with **NextJS**, **RainbowKit**, **Foundry**, **Wagmi**, **Circom**, **SnarkJS**, and **TypeScript**.
 
-![Debug Contracts tab](https://github.com/scaffold-eth/scaffold-eth-2/assets/55535804/b237af0c-5027-4849-a5c1-2e31495cccb1)
+## 🎯 Project Overview
 
-## Requirements
+Rayls Hook implements a comprehensive investor suitability assessment system that:
+
+- ✅ **Private Questionnaire**: Users answer 5 suitability questions without revealing their responses
+- 🔐 **Zero-Knowledge Proofs**: Prove investment suitability using Circom circuits
+- 🪝 **Uniswap v4 Integration**: Seamless integration with Uniswap v4 hooks
+- 📊 **Risk Profiling**: Calculate and verify risk profiles (0-10 scale)
+- 🛡️ **Privacy-First**: Never reveal private questionnaire data
+- ⚡ **On-Chain Verification**: Smart contract verification of ZK proofs
+
+## 🏗️ Architecture
+
+### System Components
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   ZK Circuits    │    │ Smart Contracts │
+│   (NextJS)      │◄──►│   (Circom)       │◄──►│   (Solidity)    │
+│                 │    │                  │    │                 │
+│ • Questionnaire │    │ • Suitability    │    │ • Verifiers     │
+│ • Proof Gen     │    │ • PrivateSwap    │    │ • Uniswap Hooks │
+│ • UI Components │    │ • Poseidon Hash  │    │ • Integration   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **ZK Layer** | Circom + SnarkJS | Zero-knowledge proof generation |
+| **Smart Contracts** | Solidity + Foundry | On-chain verification |
+| **Frontend** | NextJS + Scaffold-ETH 2 | User interface |
+| **Integration** | Uniswap v4 Hooks | DEX integration |
+| **Development** | TypeScript + Wagmi | Type-safe development |
+
+### Circuit Architecture
+
+#### Suitability Assessment Circuit
+- **Private Inputs**: 5 questionnaire responses (0-3 scale)
+- **Public Inputs**: Risk threshold and calculated profile
+- **Output**: Suitability verification (0 or 1)
+
+#### Private Swap Intent Circuit
+- **Private Inputs**: Amount, direction, sender, timestamp
+- **Public Outputs**: Commitment hash and verification data
+- **Purpose**: Prove swap intent without revealing sensitive details
+
+## ⚙️ Requirements
 
 Before you begin, you need to install the following tools:
 
 - [Node (>= v20.18.3)](https://nodejs.org/en/download/)
-- Yarn ([v1](https://classic.yarnpkg.com/en/docs/install/) or [v2+](https://yarnpkg.com/getting-started/install))
+- [Yarn](https://yarnpkg.com/getting-started/install) (v1 or v2+)
 - [Git](https://git-scm.com/downloads)
+- [Circom](https://docs.circom.io/getting-started/installation/) (for ZK circuits)
+- [SnarkJS](https://github.com/iden3/snarkjs) (for ZK proofs)
 
-## Quickstart
+## 🚀 Quick Start
 
-To get started with Scaffold-ETH 2, follow the steps below:
+To get started with Rayls Hook, follow these steps:
 
-1. Install dependencies if it was skipped in CLI:
+### 1. Install Dependencies
 
-```
-cd my-dapp-example
+```bash
+# Clone the repository
+git clone https://github.com/raylsnetwork/uniswap-incubator.git
+cd rayls-hook
+
+# Install all dependencies
 yarn install
 ```
 
-2. Run a local network in the first terminal:
+### 2. Start Local Blockchain
 
-```
+```bash
+# Start local Ethereum network (Scaffold-ETH 2)
 yarn chain
 ```
 
-This command starts a local Ethereum network using Foundry. The network runs on your local machine and can be used for testing and development. You can customize the network configuration in `packages/foundry/foundry.toml`.
+This command starts a local Ethereum network using Foundry. The network runs on your local machine and can be used for testing and development.
 
-3. On a second terminal, deploy the test contract:
+### 3. Setup Zero-Knowledge Circuits
 
+```bash
+# Setup ZK circuits and generate proofs
+yarn setup
+
+# Or setup specific circuits
+yarn setup-suitability      # Suitability assessment circuit
+yarn setup-private-swap     # Private swap intent circuit
 ```
+
+### 4. Deploy Smart Contracts
+
+```bash
+# Deploy contracts to local network
 yarn deploy
 ```
 
-This command deploys a test smart contract to the local network. The contract is located in `packages/foundry/contracts` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/foundry/script` to deploy the contract to the network. You can also customize the deploy script.
+This command deploys the Rayls Hook smart contracts to the local network, including the ZK verifiers and Uniswap v4 hooks.
 
-4. On a third terminal, start your NextJS app:
+### 5. Start Frontend
 
-```
+```bash
+# Start the NextJS frontend
 yarn start
 ```
 
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page. You can tweak the app config in `packages/nextjs/scaffold.config.ts`.
+Visit your app on: `http://localhost:3000`. You can interact with the suitability assessment and test the ZK proof verification.
 
-Run smart contract test with `yarn foundry:test`
+## 🛠️ Development
 
-- Edit your smart contracts in `packages/foundry/contracts`
-- Edit your frontend homepage at `packages/nextjs/app/page.tsx`. For guidance on [routing](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) and configuring [pages/layouts](https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts) checkout the Next.js documentation.
-- Edit your deployment scripts in `packages/foundry/script`
+### Available Commands
 
-## Documentation
+| Command | Description |
+|---------|-------------|
+| `yarn chain` | Start local blockchain |
+| `yarn deploy` | Deploy smart contracts |
+| `yarn start` | Start frontend |
+| `yarn setup` | Setup ZK circuits (default: Suitability) |
+| `yarn prove` | Generate new ZK proof |
+| `yarn setup-suitability` | Setup Suitability circuit |
+| `yarn prove-suitability` | Generate Suitability proof |
+| `yarn setup-private-swap` | Setup PrivateSwapIntent circuit |
+| `yarn prove-private-swap` | Generate PrivateSwapIntent proof |
+| `yarn test` | Run tests |
 
-Visit our [docs](https://docs.scaffoldeth.io) to learn how to start building with Scaffold-ETH 2.
+### Project Structure
 
-To know more about its features, check out our [website](https://scaffoldeth.io).
+```
+packages/
+├── circom/                    # Zero-Knowledge circuits
+│   ├── circuits/              # Circom circuit files
+│   ├── scripts/               # ZK pipeline and utilities
+│   ├── test/                  # Circuit tests
+│   └── artifacts/             # Generated ZK artifacts
+├── foundry/                   # Smart contracts
+│   ├── contracts/             # Solidity contracts
+│   ├── script/                # Deployment scripts
+│   └── test/                  # Contract tests
+├── nextjs/                    # Frontend application
+│   ├── app/                   # NextJS app directory
+│   ├── components/            # React components
+│   └── hooks/                 # Custom hooks
+└── encryption/                # Encryption utilities
+```
 
-## Contributing to Scaffold-ETH 2
+### Testing ZK Circuits
 
-We welcome contributions to Scaffold-ETH 2!
+```bash
+# Test with example inputs
+cp packages/circom/scripts/Suitability_input.example.json packages/circom/scripts/Suitability_input.json
+cp packages/circom/scripts/PrivateSwapIntent_input.example.json packages/circom/scripts/PrivateSwapIntent_input.json
 
-Please see [CONTRIBUTING.MD](https://github.com/scaffold-eth/scaffold-eth-2/blob/main/CONTRIBUTING.md) for more information and guidelines for contributing to Scaffold-ETH 2.
+# Modify the input files as needed, then generate proofs
+yarn prove-suitability
+yarn prove-private-swap
+```
 
-snarkjs zkey export soliditycalldata public.json proof.json > solidityCalldata.txt
+## 📋 Roadmap
 
-./zk_pipeline.sh --new-proof
+### Phase 1: Core Infrastructure ✅
+- [x] ZK circuits implementation (Suitability + PrivateSwapIntent)
+- [x] Smart contract verifiers
+- [x] Basic Uniswap v4 hook integration
+- [x] ZK proof generation and verification pipeline
 
-#Nuno: Steps to test
-./scripts/zk_pipeline.sh --circuit SuitabilityAssessment
-./scripts/zk_pipeline.sh --circuit PrivateSwapIntent
-#Go to foundry dir:
-forge test -vvvvvv test/RaylsHook.t.sol
+### Phase 2: Frontend Development 🚧
+- [ ] Complete questionnaire UI implementation
+- [ ] ZK proof generation interface
+- [ ] Real-time proof verification
+- [ ] User dashboard and profile management
+- [ ] Integration with wallet providers
+
+### Phase 3: Advanced Features 📋
+- [ ] Multi-circuit support and management
+- [ ] Advanced risk assessment algorithms
+- [ ] Compliance and regulatory features
+- [ ] Integration with external KYC providers
+- [ ] Mobile-responsive design
+
+### Phase 4: Production Ready 🎯
+- [ ] Security audits and testing
+- [ ] Performance optimization
+- [ ] Documentation and tutorials
+- [ ] Community features and governance
+- [ ] Mainnet deployment
+
+## 🤝 Contributing to Rayls Hook
+
+We welcome contributions to Rayls Hook! This project is part of the Uniswap Hook Incubator 6 program.
+
+### Development Guidelines
+
+1. **Fork the repository** and create a feature branch
+2. **Follow the coding standards** established in the project
+3. **Test your changes** thoroughly, especially ZK circuits
+4. **Update documentation** for any new features
+5. **Submit a pull request** with a clear description
+
+### Areas for Contribution
+
+- **Frontend Development**: UI/UX improvements, new components
+- **ZK Circuit Optimization**: Performance and security improvements
+- **Smart Contract Features**: New functionality and integrations
+- **Documentation**: Tutorials, guides, and examples
+- **Testing**: Comprehensive test coverage and edge cases
+
+### Getting Help
+
+- Check the [documentation](packages/circom/README.md) for ZK circuits
+- Review [Scaffold-ETH 2 docs](https://docs.scaffoldeth.io) for frontend development
+- Open an issue for bugs or feature requests
+- Join our community discussions
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **Scaffold-ETH 2** for the excellent development framework
+- **Uniswap** for the Hook Incubator program
+- **Circom** and **SnarkJS** for ZK proof technology
+- **Open source community** for inspiration and support
+
+---
+
+**Note**: This project is part of the Uniswap Hook Incubator 6 program. For production use, consider security audits and additional compliance requirements.

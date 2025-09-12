@@ -1,0 +1,10 @@
+{
+  "answer1": 3,
+  "answer2": 2,
+  "answer3": 1,
+  "answer4": 2,
+  "answer5": 3,
+  "wallet": "0x1234567890AbcdEF1234567890aBcdef12345678",
+  "thresholdScaled": 20,
+  "isSuitablePub": 1
+}

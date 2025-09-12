@@ -1,36 +1,47 @@
-# Suitability Assessment com Zero-Knowledge Proofs
+# Suitability Assessment with Zero-Knowledge Proofs
 
-Este projeto implementa um sistema de avaliação de suitability (adequação) de investidores usando Zero-Knowledge Proofs (ZKP) com Circom e SnarkJS. O sistema permite que um usuário prove que possui um perfil de risco adequado sem revelar suas respostas específicas do questionário.
+This project implements an investor suitability assessment system using Zero-Knowledge Proofs (ZKP) with Circom and SnarkJS. The system allows a user to prove they have an adequate risk profile without revealing their specific questionnaire responses.
 
-## 🎯 Objetivo
+## 🎯 Objective
 
-O objetivo é criar um sistema onde:
-- Um usuário responde a 5 perguntas de suitability
-- Cada resposta tem um peso específico
-- O sistema calcula um perfil de risco (0-10)
-- O usuário pode provar que seu perfil atende a um threshold mínimo
-- **Sem revelar suas respostas específicas**
+The goal is to create a system where:
+- A user answers 5 suitability questions
+- Each answer has a specific weight
+- The system calculates a risk profile (0-10)
+- The user can prove their profile meets a minimum threshold
+- **Without revealing their specific responses**
 
-## 🏗️ Arquitetura
+## 🏗️ Architecture
 
-### Circuito Circom (`circuits/SuitabilityAssessment.circom`)
+### Available Circuits
 
-O circuito implementa a lógica de:
-- **Entradas privadas**: 5 respostas do questionário (0-3 cada)
-- **Entradas públicas**: threshold mínimo e perfil de risco calculado
-- **Saída pública**: indica se o perfil atende ao threshold (0 ou 1)
+The project includes two main circuits:
 
-### Pesos das Perguntas
+#### 1. Suitability Circuit (`circuits/Suitability.circom`)
 
-| Pergunta | Peso | Descrição |
-|----------|------|-----------|
-| 1 | 2 | Experiência de investimento |
-| 2 | 3 | Tolerância ao risco |
-| 3 | 2 | Horizonte temporal |
-| 4 | 1 | Objetivos financeiros |
-| 5 | 2 | Conhecimento do mercado |
+The suitability assessment circuit implements:
+- **Private inputs**: 5 questionnaire responses (0-3 each)
+- **Public inputs**: minimum threshold and calculated risk profile
+- **Public output**: indicates if the profile meets the threshold (0 or 1)
 
-### Cálculo do Perfil de Risco
+#### 2. Private Swap Intent Circuit (`circuits/PrivateSwapIntent.circom`)
+
+The private swap intent circuit implements:
+- **Private inputs**: amount, direction, sender, timestamp
+- **Public outputs**: commitment hash and public parameters
+- **Purpose**: Prove swap intent without revealing sensitive details
+
+### Question Weights
+
+| Question | Weight | Description |
+|----------|--------|-------------|
+| 1 | 2 | Investment experience |
+| 2 | 3 | Risk tolerance |
+| 3 | 2 | Time horizon |
+| 4 | 1 | Financial objectives |
+| 5 | 2 | Market knowledge |
+
+### Risk Profile Calculation
 
 ```
 weightedSum = answer1*2 + answer2*3 + answer3*2 + answer4*1 + answer5*2
@@ -38,231 +49,360 @@ maxPossibleScore = 4 * (2+3+2+1+2) = 40
 riskProfile = (weightedSum * 10) / maxPossibleScore
 ```
 
-## 🚀 Instalação e Configuração
+## 🚀 Installation and Setup
 
-### Pré-requisitos
+### Prerequisites
 
 ```bash
-# Instalar dependências globais
+# Install global dependencies
 npm install -g circom snarkjs
 
-# Instalar dependências do projeto
+# Install project dependencies
 yarn install
 ```
 
-### Setup Inicial
+### Quick Start
 
-1. **Compilar o circuito**:
-```bash
-yarn compile
-```
+The project uses a unified ZK pipeline script that handles all operations:
 
-2. **Configurar Powers of Tau e chaves ZK**:
 ```bash
+# Complete setup for Suitability circuit (default)
 yarn setup
+
+# Generate new proof only (reuses existing setup)
+yarn prove
+
+# Run tests
+yarn test
 ```
 
-3. **Executar testes**:
+### Working with Different Circuits
+
+```bash
+# Setup and prove Suitability circuit
+yarn setup-suitability
+yarn prove-suitability
+
+# Setup and prove PrivateSwapIntent circuit
+yarn setup-private-swap
+yarn prove-private-swap
+```
+
+### Using Example Inputs
+
+The project includes example input files for testing:
+
+```bash
+# Copy example files for testing
+cp scripts/Suitability_input.example.json scripts/Suitability_input.json
+cp scripts/PrivateSwapIntent_input.example.json scripts/PrivateSwapIntent_input.json
+
+# Modify the copied files with your test values
+# Then generate proofs
+yarn prove-suitability
+yarn prove-private-swap
+```
+
+## 📋 Detailed Workflow
+
+### 1. Complete ZK Pipeline
+
+The `zk_pipeline.sh` script handles the entire ZK workflow:
+
+```bash
+# Full setup (first time)
+./scripts/zk_pipeline.sh --force-setup
+
+# Generate new proof only (reuses existing setup)
+./scripts/zk_pipeline.sh --new-proof
+
+# Default behavior (setup if needed, then prove)
+./scripts/zk_pipeline.sh
+```
+
+### 2. What the Pipeline Does
+
+#### Compilation Phase:
+- Compiles the Circom circuit
+- Generates R1CS constraints
+- Creates WASM and JavaScript files
+- Generates circuit symbols
+
+#### Setup Phase (--force-setup):
+- Generates Powers of Tau (Phase 1)
+- Contributes to Powers of Tau
+- Prepares Phase 2
+- Sets up Groth16 circuit
+- Contributes to ZKey
+- Exports verification key
+- Generates Solidity verifier contract
+
+#### Proof Generation:
+- Calculates circuit witness
+- Generates ZK proof
+- Verifies proof off-chain
+- Exports artifacts for Solidity
+
+### 3. Generated Artifacts
+
+The pipeline creates all necessary files:
+
+```
+artifacts/
+├── Suitability.r1cs              # Circuit constraints
+├── Suitability_js/               # JavaScript witness calculator
+├── Suitability_cpp/              # C++ witness calculator
+├── Suitability.sym               # Circuit symbols
+├── pot/                          # Powers of Tau and ZKeys
+│   ├── Suitability_0000.zkey
+│   ├── Suitability_0001.zkey
+│   └── Suitability_verification_key.json
+├── Suitability_proof.json        # ZK proof
+├── Suitability_public.json       # Public inputs
+└── Suitability_witness.wtns      # Circuit witness
+
+scripts/                          # Input files
+├── Suitability_input.json        # Current Suitability input
+├── Suitability_input.example.json # Example Suitability input
+├── PrivateSwapIntent_input.json  # Current PrivateSwapIntent input
+├── PrivateSwapIntent_input.example.json # Example PrivateSwapIntent input
+└── zk_pipeline.sh               # Main ZK pipeline script
+
+../foundry/                       # Solidity integration
+├── SuitabilityVerifier.sol       # Generated verifier contract
+├── solidityInputs.json           # Proof data for contract calls
+├── solidityInputs.decimal.json   # Decimal format
+├── solidityInputs.ui.json        # UI format
+├── solidityCalldata.txt          # Raw calldata
+└── cast_call.sh                  # Cast call script
+```
+
+## 🔧 Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `yarn compile` | Compiles the Circom circuit only |
+| `yarn setup` | Complete ZK setup for Suitability (default) |
+| `yarn prove` | Generate new proof for Suitability (reuses existing setup) |
+| `yarn test` | Runs system tests |
+
+### Circuit-Specific Commands
+
+| Script | Description |
+|--------|-------------|
+| `yarn setup-suitability` | Complete ZK setup for Suitability circuit |
+| `yarn prove-suitability` | Generate new proof for Suitability circuit |
+| `yarn setup-private-swap` | Complete ZK setup for PrivateSwapIntent circuit |
+| `yarn prove-private-swap` | Generate new proof for PrivateSwapIntent circuit |
+
+## 🧪 Tests
+
+The system includes comprehensive tests:
+
 ```bash
 yarn test
 ```
 
-## 📋 Fluxo de Trabalho
+Tests scenarios such as:
+- Low risk profile
+- Medium risk profile  
+- High risk profile
+- Different thresholds
+- Constraint validation
 
-### 1. Compilação do Circuito
+## 📝 Input Examples
+
+### Suitability Circuit Input
+
+The Suitability circuit requires specific input format with questionnaire responses and validation parameters:
+
+```json
+{
+  "answer1": 3,        // Investment experience (0-3)
+  "answer2": 2,        // Risk tolerance (0-3)
+  "answer3": 1,        // Time horizon (0-3)
+  "answer4": 2,        // Financial objectives (0-3)
+  "answer5": 3,        // Market knowledge (0-3)
+  "wallet": "0x1234567890AbcdEF1234567890aBcdef12345678", // User wallet address
+  "thresholdScaled": 20, // Minimum threshold (0-100, where 100 = 10.0)
+  "isSuitablePub": 1   // Expected result (0=Unsuitable, 1=Suitable)
+}
+```
+
+#### Field Descriptions:
+- **answer1-5**: Questionnaire responses (0-3 scale)
+  - `0`: Lowest risk/conservative option
+  - `3`: Highest risk/aggressive option
+- **wallet**: User's wallet address for identification
+- **thresholdScaled**: Minimum risk threshold (scaled by 10, so 20 = 2.0)
+- **isSuitablePub**: Expected suitability result for validation
+
+### PrivateSwapIntent Circuit Input
+
+The PrivateSwapIntent circuit requires swap parameters and commitment data:
+
+```json
+{
+  "amountIn": "100",           // Amount to swap (string for large numbers)
+  "zeroForOne": "1",          // Swap direction (0=Token1→Token0, 1=Token0→Token1)
+  "sender": "0x1234567890AbcdEF1234567890aBcdef12345678", // Sender address
+  "timestamp": "1697052800"   // Unix timestamp of swap intent
+}
+```
+
+#### Field Descriptions:
+- **amountIn**: Swap amount (use string format for large numbers)
+- **zeroForOne**: Direction flag (0 or 1)
+- **sender**: Address of the swap initiator
+- **timestamp**: When the swap intent was created
+
+### Testing with Examples
+
+To test different scenarios, use the provided example files:
 
 ```bash
-yarn compile
+# Copy example files for testing
+cp scripts/Suitability_input.example.json scripts/Suitability_input.json
+cp scripts/PrivateSwapIntent_input.example.json scripts/PrivateSwapIntent_input.json
+
+# Modify values in the copied files as needed
+# Then run the proof generation
+yarn prove-suitability
+yarn prove-private-swap
 ```
 
-```bash
-circom SuitabilityAssessment.circom --r1cs --wasm --sym --c -l "/Volumes/Lucas SSD/projects/uhi6"
+#### Example Scenarios:
+
+**Suitable Profile (High Risk Tolerance):**
+```json
+{
+  "answer1": 3, "answer2": 3, "answer3": 2, "answer4": 3, "answer5": 3,
+  "thresholdScaled": 15, "isSuitablePub": 1
+}
 ```
 
-Gera:
-- `circuits/SuitabilityAssessment.r1cs` - Constraints do circuito
-- `circuits/SuitabilityAssessment_js/` - Código JavaScript para cálculo de witness
-- `circuits/SuitabilityAssessment.sym` - Símbolos do circuito
-
-### 2. Setup das Chaves ZK
-
-```bash
-yarn setup
+**Unsuitable Profile (Low Risk Tolerance):**
+```json
+{
+  "answer1": 0, "answer2": 0, "answer3": 0, "answer4": 0, "answer5": 0,
+  "thresholdScaled": 25, "isSuitablePub": 0
+}
 ```
 
-Este comando executa:
-- Geração do Powers of Tau (Fase 1)
-- Contribuições para Powers of Tau
-- Finalização do Powers of Tau
-- Preparação da Fase 2
-- Setup do circuito Groth16
-- Contribuições para ZKey
-- Exportação da chave de verificação
-
-### 3. Geração de Provas
-
-```bash
-yarn generate-proof
+**Large Swap Intent:**
+```json
+{
+  "amountIn": "1000000000000000000", // 1 ETH in wei
+  "zeroForOne": "0", // Token1 → Token0
+  "sender": "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
+  "timestamp": "1700000000"
+}
 ```
 
-Gera:
-- `scripts/input.json` - Dados de entrada de exemplo
-- `scripts/witness.wtns` - Witness do circuito
-- `scripts/proof.json` - Prova ZK
-- `scripts/public.json` - Dados públicos
+## 🔐 Solidity Integration
 
-### 4. Verificação de Provas
+The pipeline automatically generates a Solidity verifier contract that allows:
 
-```bash
-yarn verify-proof
-```
+- Verify ZK proofs on-chain
+- Store suitability status by address
+- Revoke suitability (owner only)
+- Track verifications
 
-Verifica se a prova é válida usando a chave de verificação.
+### Generated Contract
 
-## 🔧 Scripts Disponíveis
-
-| Script | Descrição |
-|--------|-----------|
-| `yarn compile` | Compila o circuito Circom |
-| `yarn setup` | Setup completo das chaves ZK |
-| `yarn contribute` | Contribui para ZKey |
-| `yarn export-verifier` | Exporta chave de verificação |
-| `yarn generate-proof` | Gera prova ZK de exemplo |
-| `yarn verify-proof` | Verifica prova ZK |
-| `yarn test` | Executa testes do sistema |
-
-## 🧪 Testes
-
-O sistema inclui testes abrangentes:
-
-```bash
-yarn test
-```
-
-Testa cenários como:
-- Perfil de baixo risco
-- Perfil de médio risco
-- Perfil de alto risco
-- Thresholds diferentes
-- Validação de constraints
-
-## 📊 Exemplos de Uso
-
-### Exemplo 1: Perfil Adequado
-
-```javascript
-// Respostas do usuário
-const answers = [2, 3, 1, 2, 3]; // Perfil de médio-alto risco
-const threshold = 6; // Threshold mínimo
-
-// Resultado esperado
-// riskProfile = 7 (adequado)
-// isSuitable = 1 (true)
-```
-
-### Exemplo 2: Perfil Inadequado
-
-```javascript
-// Respostas do usuário
-const answers = [0, 1, 0, 1, 0]; // Perfil de baixo risco
-const threshold = 6; // Threshold mínimo
-
-// Resultado esperado
-// riskProfile = 3 (inadequado)
-// isSuitable = 0 (false)
-```
-
-## 🔐 Contrato Solidity
-
-O contrato `contracts/SuitabilityVerifier.sol` permite:
-
-- Verificar provas ZK on-chain
-- Armazenar status de suitability por endereço
-- Revogar suitability (apenas owner)
-- Rastrear verificações
-
-### Funções Principais
+The `SuitabilityVerifier.sol` contract is automatically generated and includes:
 
 ```solidity
-function verifySuitability(Proof calldata proof, PublicInputs calldata publicInputs) external returns (bool)
-function isUserSuitable(address user) external view returns (bool)
-function revokeSuitability(address user) external onlyOwner
+function verifyProof(
+    uint256[2] memory a,
+    uint256[2][2] memory b,
+    uint256[2] memory c,
+    uint256[] memory input
+) public view returns (bool)
 ```
 
-## 🛡️ Segurança
+### Using Generated Artifacts
 
-### Privacidade
-- **Respostas privadas**: Nunca reveladas
-- **Perfil calculado**: Pode ser público
-- **Threshold**: Pode ser público
-- **Resultado**: Pode ser público
+The pipeline creates ready-to-use files for contract integration:
 
-### Validação
-- Constraints garantem respostas válidas (0-3)
-- Verificação de consistência entre perfil e threshold
-- Validação de limites (0-10)
+```bash
+# Test the generated contract
+ADDR=<contract_address> ./cast_call.sh
 
-## 🔄 Integração com Scaffold-ETH 2
+# Use solidityInputs.json in your frontend
+const proofData = require('../foundry/solidityInputs.json');
+```
 
-Para integrar com o frontend:
+## 🛡️ Security
 
-1. **Deploy do contrato**:
+### Privacy
+- **Private responses**: Never revealed
+- **Calculated profile**: Can be public
+- **Threshold**: Can be public
+- **Result**: Can be public
+
+### Validation
+- Constraints ensure valid responses (0-3)
+- Consistency verification between profile and threshold
+- Boundary validation (0-10)
+
+## 🔄 Scaffold-ETH 2 Integration
+
+To integrate with the frontend:
+
+1. **Run the ZK pipeline**:
+```bash
+yarn setup
+```
+
+2. **Deploy the contract**:
 ```bash
 cd ../foundry
 forge build
 forge script script/DeploySuitabilityVerifier.s.sol --rpc-url http://localhost:8545 --broadcast
 ```
 
-2. **Atualizar deployedContracts.ts**:
-```typescript
-export const deployedContracts = {
-  // ... outros contratos
-  SuitabilityVerifier: {
-    // endereço do contrato deployado
-  }
-};
-```
-
-3. **Usar hooks do Scaffold-ETH**:
+3. **Use Scaffold-ETH hooks**:
 ```typescript
 const { writeContractAsync: verifySuitabilityAsync } = useScaffoldWriteContract({
   contractName: "SuitabilityVerifier"
 });
 
-// Verificar suitability
+// Verify suitability using generated proof data
+const proofData = require('../foundry/solidityInputs.json');
 await verifySuitabilityAsync({
-  functionName: "verifySuitability",
-  args: [proof, publicInputs]
+  functionName: "verifyProof",
+  args: [proofData[0], proofData[1], proofData[2], proofData[3]]
 });
 ```
 
-## 📈 Próximos Passos
+## 📈 Next Steps
 
-1. **Implementação completa da verificação on-chain**
-2. **Interface de usuário para questionário**
-3. **Sistema de credenciais verificáveis**
-4. **Integração com provedores de KYC**
-5. **Auditoria de segurança**
+1. **Complete on-chain verification implementation**
+2. **User interface for questionnaire**
+3. **Verifiable credentials system**
+4. **Integration with KYC providers**
+5. **Security audit**
 
-## 🤝 Contribuição
+## 🤝 Contributing
 
-1. Fork o projeto
-2. Crie uma branch para sua feature
-3. Commit suas mudanças
-4. Push para a branch
-5. Abra um Pull Request
+1. Fork the project
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
 
-## 📄 Licença
+## 📄 License
 
-MIT License - veja o arquivo [LICENSE](../LICENSE) para detalhes.
+MIT License - see the [LICENSE](../LICENSE) file for details.
 
-## 🆘 Suporte
+## 🆘 Support
 
-Para dúvidas ou problemas:
-1. Verifique a documentação
-2. Execute os testes
-3. Abra uma issue no GitHub
+For questions or issues:
+1. Check the documentation
+2. Run the tests
+3. Open a GitHub issue
 
 ---
 
-**Nota**: Este é um projeto educacional. Para uso em produção, considere auditorias de segurança e implementações mais robustas.
+**Note**: This is an educational project. For production use, consider security audits and more robust implementations.

@@ -9,7 +9,7 @@ import { PoolKey } from "@uniswap/v4-core/src/types/PoolKey.sol";
 import { PoolId, PoolIdLibrary } from "@uniswap/v4-core/src/types/PoolId.sol";
 import { BalanceDelta } from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import { BeforeSwapDelta, BeforeSwapDeltaLibrary } from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
-import { SuitabilityAssessmentVerifier } from "./SuitabilityAssessmentVerifier.sol";
+import { SuitabilityVerifier } from "./SuitabilityVerifier.sol";
 import { console } from "forge-std/console.sol";
 
 import { PrivateSwapIntentVerifier } from "./PrivateSwapIntentVerifier.sol";
@@ -27,7 +27,7 @@ contract RaylsHook is BaseHook {
 
     mapping(PoolId => uint256 count) public beforeAddLiquidityCount;
     mapping(PoolId => uint256 count) public beforeRemoveLiquidityCount;
-    SuitabilityAssessmentVerifier public suitabilityVerifier;
+    SuitabilityVerifier public suitabilityVerifier;
     PrivateSwapIntentVerifier public privateSwapIntentVerifier;
 
     mapping(uint256 => Commitment) public commitments;
@@ -45,7 +45,7 @@ contract RaylsHook is BaseHook {
     constructor(IPoolManager _poolManager, address _suitabilityVerifier, address _privateSwapIntentVerifier)
         BaseHook(_poolManager)
     {
-        suitabilityVerifier = SuitabilityAssessmentVerifier(_suitabilityVerifier);
+        suitabilityVerifier = SuitabilityVerifier(_suitabilityVerifier);
         privateSwapIntentVerifier = PrivateSwapIntentVerifier(_privateSwapIntentVerifier);
     }
 
