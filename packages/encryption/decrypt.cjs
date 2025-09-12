@@ -7,17 +7,14 @@ const eccrypto = require("eccrypto");
 const crypto = require("crypto");
 const { buildPoseidon } = require("circomlibjs");
 
-
-
 // ECIES encrypted symmetric key (from encrypt.js)
-if (process.argv.length !== 5) {
-  console.error("Usage: node decrypt.cjs <auditorPrivateKey> <ciphertextHex> <encKeyForAuditor>");
+if (process.argv.length !== 4) {
+  console.error("Usage: node decrypt.cjs <auditorPrivateKey> <ciphertextForAuditor>");
   process.exit(1);
 }
 
 const auditorPrivKey = process.argv[2];
-const ciphertextHex = process.argv[3];
-const encKeyForAuditor = process.argv[4];
+const encKeyForAuditor = process.argv[3];
 
 // Auditor private key (Buffer)
 const auditorPriv = Buffer.from(
@@ -25,7 +22,6 @@ const auditorPriv = Buffer.from(
   "hex"
 );
 
-const ciphertextBuffer = Buffer.from(ciphertextHex.replace(/^0x/, ""), "hex");
 const encKeyForAuditorBuffer = Buffer.from(encKeyForAuditor.replace(/^0x/, ""), "hex");
 
 // ----------------------
@@ -42,18 +38,6 @@ async function decryptSymmetricKey(encKeyForAuditorBuffer, auditorPriv) {
   const encrypted = { iv, ephemPublicKey: ephemPub, ciphertext, mac };
   const K = await eccrypto.decrypt(auditorPriv, encrypted);
   return K;
-}
-
-// 2️⃣ Decrypt AES-GCM ciphertext
-function decryptMessage(K, ciphertextBuffer) {
-  const iv = ciphertextBuffer.slice(0, 12);
-  const tag = ciphertextBuffer.slice(12, 28); // 16 bytes tag
-  const enc = ciphertextBuffer.slice(28);
-
-  const decipher = crypto.createDecipheriv("aes-256-gcm", K, iv);
-  decipher.setAuthTag(tag);
-  const plaintext = Buffer.concat([decipher.update(enc), decipher.final()]);
-  return plaintext;
 }
 
 // 3️⃣ Parse plaintext buffer into circuit inputs
@@ -97,13 +81,10 @@ async function computeCommitmentId(amountIn, zeroForOne, sender, timestamp) {
 // ----------------------
 (async () => {
   // Recover symmetric key
-  const K = await decryptSymmetricKey(encKeyForAuditorBuffer, auditorPriv);
-
-  // Decrypt message
-  const plaintext = decryptMessage(K, ciphertextBuffer);
+  const decryptedMessage = await decryptSymmetricKey(encKeyForAuditorBuffer, auditorPriv);
 
   // Parse back to circuit inputs
-  const parsed = parseMessage(plaintext);
+  const parsed = parseMessage(decryptedMessage);
 
   // Compute commitment ID
   const commitmentId = await computeCommitmentId(

@@ -196,27 +196,17 @@ contract RaylsHookTest is Test, Deployers {
         uint256 amountIn = pubSignals[1];
         uint256 timestamp = pubSignals[4];
 
-        string memory encKeyForAuditorStr = jsonEncryptedPayload.readString(".encKeyForAuditor");
-        string memory ciphertextStr = jsonEncryptedPayload.readString(".ciphertext");
+        string memory ciphertextForAuditorStr = jsonEncryptedPayload.readString(".ciphertextForAuditor");
 
-        bytes memory encKeyForAuditor = RaylsHookHelper.hexStringToBytes(encKeyForAuditorStr);
-        bytes memory ciphertext = RaylsHookHelper.hexStringToBytes(ciphertextStr);
+        bytes memory ciphertextForAuditor = RaylsHookHelper.hexStringToBytes(ciphertextForAuditorStr);
 
-        uint256 id = uint256(
-            keccak256(
-                abi.encode(
-                    pubSignals[0], // Poseidon hash of (amountIn, zeroForOne, sender, timestamp)
-                    ciphertext, // AES-encrypted message optional
-                    encKeyForAuditor // optional: can be empty bytes
-                )
-            )
-        );
+        uint256 id = uint256(keccak256(abi.encode(pubSignals[0], ciphertextForAuditor)));
 
         vm.startPrank(proofSender, proofSender);
         bytes memory permitSignature = RaylsHookHelper.buildPermitSignature(
             vm, proofSenderPk, Currency.unwrap(currency0), timestamp, proofSender, address(hook), amountIn
         );
-        hook.storeCommitment(poolKey, id, ciphertext, encKeyForAuditor, permitSignature);
+        hook.storeCommitment(poolKey, id, ciphertextForAuditor, permitSignature);
 
         // For now we just approve the swapRouter to spend the tokens
         // IERC20Minimal(Currency.unwrap(currency0)).approve(address(hook), amountIn);
@@ -234,19 +224,16 @@ contract RaylsHookTest is Test, Deployers {
         assertEq(int256(delta.amount0()), -int256(amountIn));
         vm.stopPrank();
 
-        (bytes memory onChainCiphertext, bytes memory onChainEncKeyForAuditor,, RaylsHook.CommitmentStatus status) =
-            hook.commitments(poolKey.toId(), id);
+        (bytes memory onChainCiphertext,, RaylsHook.CommitmentStatus status) = hook.commitments(poolKey.toId(), id);
 
         assertEq(uint8(status), uint8(RaylsHook.CommitmentStatus.Executed));
-        assertEq(onChainCiphertext, ciphertext);
-        assertEq(onChainEncKeyForAuditor, encKeyForAuditor);
+        assertEq(onChainCiphertext, ciphertextForAuditor);
+
         string memory hexOnChainCiphertext = vm.toString(onChainCiphertext);
-        string memory hexOnChainEncKeyForAuditor = vm.toString(onChainEncKeyForAuditor);
 
         // Decrypt off-chain and use the private values to calculate the commitment ID
         // It must match to the one stored on-chain created by the circuit.
-        uint256 decryptedCommitmentId =
-            RaylsHookHelper.decryptCiphertext(vm, auditorPk, hexOnChainCiphertext, hexOnChainEncKeyForAuditor);
+        uint256 decryptedCommitmentId = RaylsHookHelper.decryptCiphertext(vm, auditorPk, hexOnChainCiphertext);
 
         // Check that commitmentId is correct
         assertEq(pubSignals[0], decryptedCommitmentId);

@@ -9,21 +9,18 @@ import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IER
 library RaylsHookHelper {
     using stdJson for string;
 
-    function decryptCiphertext(
-        Vm vm,
-        string memory _auditorPk,
-        string memory ciphertext,
-        string memory encKeyForAuditor
-    ) public returns (uint256 output) {
+    function decryptCiphertext(Vm vm, string memory _auditorPk, string memory ciphertext)
+        public
+        returns (uint256 output)
+    {
         // You can implement this function to validate the encryption on-chain if needed.
         // For example, you might want to check the length of the ciphertext or other properties.
         // Enable FFI
-        string[] memory cmds = new string[](5);
+        string[] memory cmds = new string[](4);
         cmds[0] = "node";
         cmds[1] = "../encryption/decrypt.cjs";
         cmds[2] = _auditorPk;
         cmds[3] = cmds[3] = ciphertext;
-        cmds[4] = encKeyForAuditor;
 
         bytes memory result = vm.ffi(cmds);
 
