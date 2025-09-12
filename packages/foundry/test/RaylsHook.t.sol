@@ -88,10 +88,7 @@ contract RaylsHookTest is Test, Deployers {
 
         // Deploy the hook to an address with the correct flags
         address flags = address(
-            uint160(
-                Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG
-                    | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG
-            ) ^ (0x4444 << 144) // Namespace the hook to avoid collisions
+            uint160(Hooks.BEFORE_SWAP_FLAG) ^ (0x4444 << 144) // Namespace the hook to avoid collisions
         );
         bytes memory constructorArgs = abi.encode(poolManager, suitabilityVerifier, privateSwapIntentVerifier); // Add all the necessary constructor arguments from the hook
         deployCodeTo("RaylsHook.sol:RaylsHook", constructorArgs, flags);
@@ -237,10 +234,10 @@ contract RaylsHookTest is Test, Deployers {
         assertEq(int256(delta.amount0()), -int256(amountIn));
         vm.stopPrank();
 
-        (bytes memory onChainCiphertext, bytes memory onChainEncKeyForAuditor,, bool executed,) =
+        (bytes memory onChainCiphertext, bytes memory onChainEncKeyForAuditor,, RaylsHook.CommitmentStatus status) =
             hook.commitments(poolKey.toId(), id);
 
-        assertEq(executed, true);
+        assertEq(uint8(status), uint8(RaylsHook.CommitmentStatus.Executed));
         assertEq(onChainCiphertext, ciphertext);
         assertEq(onChainEncKeyForAuditor, encKeyForAuditor);
         string memory hexOnChainCiphertext = vm.toString(onChainCiphertext);

@@ -42,25 +42,34 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
 
     mapping(PoolId poolId => mapping(uint256 => Commitment)) public commitments;
 
-    event CommitmentStored(uint256 id, address indexed sender);
-    event Revealed(uint256 id, address indexed revealer);
+    event CommitmentStored(uint256 indexed id, address indexed sender, bytes, bytes, bytes);
+    event CommitmentExecuted(uint256 indexed id, address indexed sender);
+    event CommitmentCanceled(uint256 indexed id, address indexed canceller);
 
     // Errors
     error CommitmentMismatch(bytes pubId, uint256 expectedId);
-    error NotMarkedAsExecuted(uint256 signal);
     error CommitmentNotReady(uint256 notBefore, uint256 currentTime);
     error InvalidWallet(address provided, address expected);
     error InvalidSuitabilityProof();
     error AlreadyExecuted(uint256 id);
     error InvalidPrivateSwapIntentProof();
     error AlreadyExists(uint256 id);
+    error CommitmentNotActive(uint256 id);
+    error CommitmentNotFound(uint256 id);
+
+    enum CommitmentStatus {
+        None, // default, not stored
+        Active, // stored but not yet executed
+        Executed, // executed successfully
+        Canceled // canceled by creator
+
+    }
 
     struct Commitment {
         bytes ciphertext; // AES/GCM ciphertext (includes tag)
         bytes encKeyForAuditor; // encrypted symmetric key for auditor
         bytes permit;
-        bool exists;
-        bool executed;
+        CommitmentStatus status;
     }
 
     constructor(IPoolManager _poolManager, address _suitabilityVerifier, address _privateSwapIntentVerifier)
@@ -74,12 +83,12 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
         return Hooks.Permissions({
             beforeInitialize: false,
             afterInitialize: false,
-            beforeAddLiquidity: true,
+            beforeAddLiquidity: false,
             afterAddLiquidity: false,
-            beforeRemoveLiquidity: true,
+            beforeRemoveLiquidity: false,
             afterRemoveLiquidity: false,
             beforeSwap: true,
-            afterSwap: true,
+            afterSwap: false,
             beforeDonate: false,
             afterDonate: false,
             beforeSwapReturnDelta: false,
@@ -116,32 +125,6 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
         return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
 
-    function _afterSwap(address, PoolKey calldata key, SwapParams calldata, BalanceDelta, bytes calldata)
-        internal
-        override
-        returns (bytes4, int128)
-    {
-        return (BaseHook.afterSwap.selector, 0);
-    }
-
-    function _beforeAddLiquidity(address, PoolKey calldata key, ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        override
-        returns (bytes4)
-    {
-        beforeAddLiquidityCount[key.toId()]++;
-        return BaseHook.beforeAddLiquidity.selector;
-    }
-
-    function _beforeRemoveLiquidity(address, PoolKey calldata key, ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        override
-        returns (bytes4)
-    {
-        beforeRemoveLiquidityCount[key.toId()]++;
-        return BaseHook.beforeRemoveLiquidity.selector;
-    }
-
     /**
      * Determines the origin of the transaction.
      *
@@ -165,8 +148,12 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
         nonReentrant
         returns (BalanceDelta)
     {
-        if (commitments[key.toId()][id].executed) {
-            revert AlreadyExecuted(id);
+        Commitment storage commitment = commitments[key.toId()][id];
+        if (commitment.status == CommitmentStatus.None) {
+            revert CommitmentNotFound(id);
+        }
+        if (commitment.status != CommitmentStatus.Active) {
+            revert CommitmentNotActive(id);
         }
 
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
@@ -176,15 +163,11 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
             revert CommitmentNotReady(pubSignals[4], block.timestamp);
         }
 
-        if (pubSignals[2] != 1) {
-            revert NotMarkedAsExecuted(pubSignals[2]);
-        }
-
         // Making sure we are executing the right commitment
         bytes memory pubId = abi.encode(
             pubSignals[0], // Poseidon hash of (amount, recipient, nonce)
-            commitments[key.toId()][id].ciphertext,
-            commitments[key.toId()][id].encKeyForAuditor
+            commitment.ciphertext,
+            commitment.encKeyForAuditor
         );
 
         if (keccak256(pubId) != bytes32(id)) {
@@ -197,13 +180,12 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
         }
 
         // We can swap now
-
         // Mark as executed before any external transfer/call
-        commitments[key.toId()][id].executed = true;
+        commitment.status = CommitmentStatus.Executed;
 
         // Run the permit if needed
-        if (commitments[key.toId()][id].permit.length > 0) {
-            (uint8 v, bytes32 r, bytes32 s) = splitSig(commitments[key.toId()][id].permit);
+        if (commitment.permit.length > 0) {
+            (uint8 v, bytes32 r, bytes32 s) = splitSig(commitment.permit);
             IERC20Permit(Currency.unwrap(key.currency0)).permit(
                 address(uint160(pubSignals[3])), address(this), pubSignals[1], pubSignals[4] + 1 days, v, r, s
             );
@@ -230,7 +212,7 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
         );
 
         (BalanceDelta delta) = abi.decode(callbackReturn, (BalanceDelta));
-        // emit Executed(keyId, id, owner, /*...*/);
+        emit CommitmentExecuted(id, msg.sender);
         return delta;
     }
 
@@ -241,17 +223,50 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
         bytes calldata encKeyForAuditor,
         bytes calldata permit
     ) external {
-        if (commitments[key.toId()][id].exists) {
+        if (commitments[key.toId()][id].status != CommitmentStatus.None) {
             revert AlreadyExists(id);
         }
+
         commitments[key.toId()][id] = Commitment({
             ciphertext: ciphertext,
             encKeyForAuditor: encKeyForAuditor,
             permit: permit,
-            exists: true,
-            executed: false
+            status: CommitmentStatus.Active
         });
-        emit CommitmentStored(id, msg.sender);
+        emit CommitmentStored(id, msg.sender, ciphertext, encKeyForAuditor, permit);
+    }
+
+    function cancelCommitment(PoolKey calldata key, uint256 id, bytes calldata data) external {
+        Commitment storage c = commitments[key.toId()][id];
+        if (c.status != CommitmentStatus.Active) {
+            revert CommitmentNotActive(id);
+        }
+
+        (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
+            abi.decode(data, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
+
+        // Making sure we are executing the right commitment
+        bytes memory pubId = abi.encode(
+            pubSignals[0], // Poseidon hash of (amount, recipient, nonce)
+            c.ciphertext,
+            c.encKeyForAuditor
+        );
+
+        if (keccak256(pubId) != bytes32(id)) {
+            revert CommitmentMismatch(pubId, id);
+        }
+
+        bool privateVerifierOk = privateSwapIntentVerifier.verifyProof(pA, pB, pC, pubSignals);
+        if (!privateVerifierOk) {
+            revert InvalidPrivateSwapIntentProof();
+        }
+
+        // We can cancel now
+        c.status = CommitmentStatus.Canceled;
+        delete c.ciphertext;
+        delete c.encKeyForAuditor;
+        delete c.permit;
+        emit CommitmentCanceled(id, msg.sender);
     }
 
     function swapAndSettleBalances(PoolKey memory key, SwapParams memory params) internal returns (BalanceDelta) {
