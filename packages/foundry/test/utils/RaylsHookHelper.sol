@@ -9,6 +9,13 @@ import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IER
 library RaylsHookHelper {
     using stdJson for string;
 
+    struct PrivateSwapPublic {
+        uint256 amountIn;
+        uint256 timestamp;
+        uint256 poseidonHash;
+        bytes proofData;
+    }
+
     function decryptCiphertext(Vm vm, string memory _auditorPk, string memory ciphertext)
         public
         returns (uint256 output)
@@ -182,7 +189,7 @@ library RaylsHookHelper {
     function getPublicSignalsFromPrivateSwapIntentProof(string memory json, bool fakePa, bool fakeHash)
         public
         pure
-        returns (uint256 amountIn, uint256 timestamp, uint256 poseidonHash, bytes memory proofData)
+        returns (PrivateSwapPublic memory out)
     {
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             loadPrivateSwapIntentProof(json);
@@ -197,10 +204,10 @@ library RaylsHookHelper {
             pubSignals[0] = 1;
         }
 
-        proofData = abi.encode(pA, pB, pC, pubSignals);
-        poseidonHash = pubSignals[0];
-        amountIn = pubSignals[1];
-        timestamp = pubSignals[4];
+        out.proofData = abi.encode(pA, pB, pC, pubSignals);
+        out.poseidonHash = pubSignals[0];
+        out.amountIn = pubSignals[1];
+        out.timestamp = pubSignals[4];
     }
 
     function getJsonCiphertext(string memory _jsonEncryptedPayload)
