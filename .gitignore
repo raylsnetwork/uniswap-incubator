@@ -22,10 +22,25 @@ node_modules
 # cli
 dist
 
-# artifacts
-packages/circom/artifacts
-packages/foundry/inputs
-
 # coverage
 packages/foundry/coverage
 lcov.info
+
+# Build artifacts
+packages/foundry/inputs
+packages/foundry/out/
+packages/foundry/broadcast/
+packages/foundry/cache/
+packages/foundry/deployments/
+
+# Temporary files
+packages/foundry/solidityCalldata.txt
+packages/foundry/solidityInputs*.json
+packages/foundry/cast_call.sh
+
+# ZK artifacts
+packages/circom/artifacts/
+packages/circom/scripts/*.wtns
+packages/circom/scripts/proof.json
+packages/circom/scripts/public.json
+packages/circom/scripts/input.json

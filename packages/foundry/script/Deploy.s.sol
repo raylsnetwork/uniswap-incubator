@@ -17,9 +17,5 @@ contract DeployScript is ScaffoldETHDeploy {
 
         DeploySuitabilityVerifier deploySuitabilityVerifier = new DeploySuitabilityVerifier();
         deploySuitabilityVerifier.run();
-
-        // Deploy another contract
-        // DeployMyContract myContract = new DeployMyContract();
-        // myContract.run();
     }
 }
