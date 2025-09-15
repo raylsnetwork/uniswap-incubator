@@ -25,3 +25,7 @@ dist
 # artifacts
 packages/circom/artifacts
 packages/foundry/inputs
+
+# coverage
+packages/foundry/coverage
+lcov.info

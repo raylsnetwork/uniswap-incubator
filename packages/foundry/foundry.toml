@@ -6,10 +6,10 @@ fs_permissions = [{ access = "read-write", path = "./"}]
 
 solc_version = '0.8.26'
 evm_version = "cancun"                                                   # hard fork that enabled EIP-1153
+optimizer = true
 optimizer_runs = 800
 via_ir = true
 ffi = true
-
 
 [rpc_endpoints]
 default_network = "http://127.0.0.1:8545"

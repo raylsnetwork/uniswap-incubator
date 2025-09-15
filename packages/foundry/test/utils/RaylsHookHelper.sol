@@ -178,4 +178,37 @@ library RaylsHookHelper {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
         return abi.encodePacked(r, s, v);
     }
+
+    function getPublicSignalsFromPrivateSwapIntentProof(string memory json, bool fakePa, bool fakeHash)
+        public
+        pure
+        returns (uint256 amountIn, uint256 timestamp, uint256 poseidonHash, bytes memory proofData)
+    {
+        (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
+            loadPrivateSwapIntentProof(json);
+
+        if (fakePa) {
+            // Change the poseidon hash to an incorrect one
+            pA = [uint256(1), pA[1]];
+        }
+
+        if (fakeHash) {
+            // Change the poseidon hash to an incorrect one
+            pubSignals[0] = 1;
+        }
+
+        proofData = abi.encode(pA, pB, pC, pubSignals);
+        poseidonHash = pubSignals[0];
+        amountIn = pubSignals[1];
+        timestamp = pubSignals[4];
+    }
+
+    function getJsonCiphertext(string memory _jsonEncryptedPayload)
+        public
+        pure
+        returns (bytes memory ciphertextForAuditor)
+    {
+        string memory ciphertextForAuditorStr = _jsonEncryptedPayload.readString(".ciphertextForAuditor");
+        ciphertextForAuditor = RaylsHookHelper.hexStringToBytes(ciphertextForAuditorStr);
+    }
 }

@@ -44,14 +44,13 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
 
     event CommitmentStored(uint256 indexed id, address indexed sender, bytes, bytes);
     event CommitmentExecuted(uint256 indexed id, address indexed sender);
-    event CommitmentCanceled(uint256 indexed id, address indexed canceller);
+    event CommitmentCancelled(uint256 indexed id, address indexed canceller);
 
     // Errors
     error CommitmentMismatch(bytes pubId, uint256 expectedId);
     error CommitmentNotReady(uint256 notBefore, uint256 currentTime);
     error InvalidWallet(address provided, address expected);
     error InvalidSuitabilityProof();
-    error AlreadyExecuted(uint256 id);
     error InvalidPrivateSwapIntentProof();
     error AlreadyExists(uint256 id);
     error CommitmentNotActive(uint256 id);
@@ -61,7 +60,7 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
         None, // default, not stored
         Active, // stored but not yet executed
         Executed, // executed successfully
-        Canceled // canceled by creator
+        Cancelled // canceled by creator
 
     }
 
@@ -130,7 +129,7 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
 
     /**
      * @notice Stores a new encrypted swap commitment onchain.
-     * @dev Each commitment is uniquely identified by `id` under a specific pool key.
+     * @dev Each commitment is uniquely identified by a commitment `id` under a specific pool key.
      *      Reverts if a commitment with the same `id` already exists.
      *      The ciphertextForAuditor allows a designated auditor to decrypt the swap parameters offchain.
      * @param key Pool key identifying the Uniswap v4 pool this commitment belongs to.
@@ -161,23 +160,23 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
      *      Large storage fields may be cleared to save gas, but the status is retained for auditability.
      * @param key Pool key identifying the Uniswap v4 pool this commitment belongs to.
      * @param id Unique identifier of the commitment to cancel.
-     * @param zkProof ABI-encoded zkSNARK proof data (pA, pB, pC, pubSignals) to authorize the cancellation.
-     * Emits a {CommitmentCanceled} event.
+     * @param zkSnarkProof ABI-encoded zkSNARK proof data (pA, pB, pC, pubSignals) to authorize the cancellation.
+     * Emits a {CommitmentCancelled} event.
      */
-    function cancelCommitment(PoolKey calldata key, uint256 id, bytes calldata zkProof) external {
+    function cancelCommitment(PoolKey calldata key, uint256 id, bytes calldata zkSnarkProof) external {
         Commitment storage c = commitments[key.toId()][id];
         if (c.status != CommitmentStatus.Active) {
             revert CommitmentNotActive(id);
         }
 
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
-            abi.decode(zkProof, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
+            abi.decode(zkSnarkProof, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
 
         // Making sure we are executing the right commitment
-        bytes memory pubId = abi.encode(pubSignals[0], c.ciphertextForAuditor);
+        bytes memory commitmentId = abi.encode(pubSignals[0], c.ciphertextForAuditor);
 
-        if (keccak256(pubId) != bytes32(id)) {
-            revert CommitmentMismatch(pubId, id);
+        if (keccak256(commitmentId) != bytes32(id)) {
+            revert CommitmentMismatch(commitmentId, id);
         }
 
         bool privateVerifierOk = privateSwapIntentVerifier.verifyProof(pA, pB, pC, pubSignals);
@@ -186,25 +185,25 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
         }
 
         // We can cancel now
-        c.status = CommitmentStatus.Canceled;
+        c.status = CommitmentStatus.Cancelled;
         delete c.ciphertextForAuditor;
         delete c.permit;
-        emit CommitmentCanceled(id, msg.sender);
+        emit CommitmentCancelled(id, msg.sender);
     }
 
     /**
      * @notice Executes a previously stored encrypted swap commitment once its conditions are met.
-     * @dev Verifies a zkSNARK proof to ensure the executor knows the commitment’s plaintext
-     *      and that the onchain commitment matches the provided proof. Uses ERC20 permit to
-     *      pull tokens from the original sender, then executes a Uniswap v4 swap through
+     * @dev Verifies a zkSNARK proof to ensure the executor knows the swap commitment’s plaintext
+     *      and that the onchain commitment id is the result of the provided proof + encryption for auditor.
+     *      It uses ERC20 permit to pull tokens from the original sender, then executes a Uniswap v4 swap through
      *      the PoolManager. Marks the commitment as executed to prevent replay.
      * @param key Pool key identifying the Uniswap v4 pool this commitment belongs to.
      * @param id Unique identifier of the commitment to execute.
-     * @param zkProof ABI-encoded zkSNARK proof data (pA, pB, pC, pubSignals) to authorize the execution.
+     * @param zkSnarkProof ABI-encoded zkSNARK proof data (pA, pB, pC, pubSignals) to authorize the execution.
      * @return delta Net balance delta returned from the swap execution.
      * Emits a {CommitmentExecuted} event (if you add one).
      */
-    function executeCommitment(PoolKey calldata key, uint256 id, bytes calldata zkProof)
+    function executeCommitment(PoolKey calldata key, uint256 id, bytes calldata zkSnarkProof)
         external
         nonReentrant
         returns (BalanceDelta)
@@ -218,20 +217,20 @@ contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
         }
 
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
-            abi.decode(zkProof, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
+            abi.decode(zkSnarkProof, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
 
         if (pubSignals[4] > block.timestamp) {
             revert CommitmentNotReady(pubSignals[4], block.timestamp);
         }
 
         // Making sure we are executing the right commitment
-        bytes memory pubId = abi.encode(
+        bytes memory commitmentId = abi.encode(
             pubSignals[0], // Poseidon hash
             commitment.ciphertextForAuditor
         );
 
-        if (keccak256(pubId) != bytes32(id)) {
-            revert CommitmentMismatch(pubId, id);
+        if (keccak256(commitmentId) != bytes32(id)) {
+            revert CommitmentMismatch(commitmentId, id);
         }
 
         bool privateVerifierOk = privateSwapIntentVerifier.verifyProof(pA, pB, pC, pubSignals);
