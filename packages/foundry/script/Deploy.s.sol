@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import "./DeployHelpers.s.sol";
-import { DeployYourContract } from "./DeployYourContract.s.sol";
 import { DeploySuitabilityVerifier } from "./04_DeploySuitabilityVerifier.s.sol";
 
 /**
@@ -16,14 +15,7 @@ contract DeployScript is ScaffoldETHDeploy {
         // Deploys all your contracts sequentially
         // Add new deployments here when needed
 
-        DeployYourContract deployYourContract = new DeployYourContract();
-        deployYourContract.run();
-
         DeploySuitabilityVerifier deploySuitabilityVerifier = new DeploySuitabilityVerifier();
         deploySuitabilityVerifier.run();
-
-        // Deploy another contract
-        // DeployMyContract myContract = new DeployMyContract();
-        // myContract.run();
     }
 }

@@ -153,8 +153,8 @@ function testWithRealCircuit() {
     
     try {
         // Verificar se os arquivos necessários existem
-        const wasmPath = path.join(__dirname, "../SuitabilityAssessment_js/SuitabilityAssessment.wasm");
-        const zkeyPath = path.join(__dirname, "../SuitabilityAssessment_final.zkey");
+        const wasmPath = path.join(__dirname, "../Suitability_js/Suitability.wasm");
+        const zkeyPath = path.join(__dirname, "../Suitability_final.zkey");
         
         if (!fs.existsSync(wasmPath)) {
             console.log("⚠️  Arquivo .wasm não encontrado. Execute 'yarn compile' primeiro.");

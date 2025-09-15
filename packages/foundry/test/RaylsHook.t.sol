@@ -25,7 +25,7 @@ import { IERC20Minimal } from "@uniswap/v4-core/src/interfaces/external/IERC20Mi
 import { console } from "forge-std/console.sol";
 import "forge-std/StdJson.sol";
 
-import { SuitabilityAssessmentVerifier } from "../contracts/SuitabilityAssessmentVerifier.sol";
+import { SuitabilityVerifier } from "../contracts/SuitabilityVerifier.sol";
 import { PrivateSwapIntentVerifier } from "../contracts/PrivateSwapIntentVerifier.sol";
 import { RaylsHookHelper } from "./utils/RaylsHookHelper.sol";
 
@@ -47,7 +47,7 @@ contract RaylsHookTest is Test, Deployers {
     PoolKey poolKey;
 
     RaylsHook hook;
-    SuitabilityAssessmentVerifier suitabilityVerifier;
+    SuitabilityVerifier suitabilityVerifier;
     PrivateSwapIntentVerifier privateSwapIntentVerifier;
     PoolId poolId;
 
@@ -62,8 +62,8 @@ contract RaylsHookTest is Test, Deployers {
     function setUp() public {
         // Get all necessary json files
         string memory root = vm.projectRoot();
-        // Get the proof for SuitabilityAssessment
-        string memory pathSuitability = string.concat(root, "/inputs/SuitabilityAssessmentInputs.json");
+        // Get the proof for Suitability
+        string memory pathSuitability = string.concat(root, "/inputs/SuitabilityInputs.json");
         jsonSuitability = vm.readFile(pathSuitability);
 
         // Get the proof for PrivateSwapIntent
@@ -77,7 +77,7 @@ contract RaylsHookTest is Test, Deployers {
         // Deploys all required artifacts.
         deployArtifacts();
 
-        suitabilityVerifier = new SuitabilityAssessmentVerifier();
+        suitabilityVerifier = new SuitabilityVerifier();
         privateSwapIntentVerifier = new PrivateSwapIntentVerifier();
 
         (currency0, currency1) = deployCurrencyPair();
@@ -169,7 +169,7 @@ contract RaylsHookTest is Test, Deployers {
         // delta and fee are placeholder, assert if needed
     }
 
-    function testSuitabilityAssessmentVerifier() public view {
+    function testSuitabilityVerifier() public view {
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             RaylsHookHelper.loadSuitabilityProof(jsonSuitability);
 

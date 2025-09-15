@@ -11,7 +11,7 @@ include "node_modules/circomlib/circuits/comparators.circom";
  *
  * Públicos: thresholdScaled, isSuitablePub
  */
-template SuitabilityAssessmentWeighted() {
+template SuitabilityWeighted() {
     // ---- Entradas privadas ----
     signal input answer1;
     signal input answer2;
@@ -62,4 +62,4 @@ template SuitabilityAssessmentWeighted() {
 }
 
 // Tornar públicos: thresholdScaled e isSuitablePub
-component main { public [thresholdScaled, isSuitablePub, wallet] } = SuitabilityAssessmentWeighted();
+component main { public [thresholdScaled, isSuitablePub, wallet] } = SuitabilityWeighted();

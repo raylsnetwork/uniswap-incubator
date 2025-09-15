@@ -6,7 +6,7 @@ set -euo pipefail
 # ─────────────────────────────
 ONLYNEWPROOF=false
 FORCE_SETUP=false
-CIRCUIT_NAME="SuitabilityAssessment"
+CIRCUIT_NAME="Suitability"
 ENTROPY="$(openssl rand -hex 32 || echo 'deadbeef')"
 
 while [[ $# -gt 0 ]]; do
@@ -20,7 +20,7 @@ Usage: $0 [--new-proof] [--force-setup] [--circuit CIRCUIT_NAME]
 
 --new-proof     Reutiliza PTAU/Phase2/ZKey e gera apenas nova prova
 --force-setup   Refaz Phase2 + setup + zkey (troca o VK!)
---circuit       Nome do circuito (default: SuitabilityAssessment)
+--circuit       Nome do circuito (default: Suitability)
 EOF
       exit 0
       ;;
