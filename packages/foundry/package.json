@@ -29,6 +29,7 @@
     "toml": "~3.0.0"
   },
   "devDependencies": {
+    "lcov": "^1.16.0",
     "shx": "^0.3.4"
   }
 }
