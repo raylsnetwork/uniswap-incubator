@@ -46,22 +46,24 @@ Rayls Hook implements a comprehensive investor suitability assessment system tha
 
 ### Technology Stack
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **ZK Layer** | Circom + SnarkJS | Zero-knowledge proof generation |
-| **Smart Contracts** | Solidity + Foundry | On-chain verification |
-| **Frontend** | NextJS + Scaffold-ETH 2 | User interface |
-| **Integration** | Uniswap v4 Hooks | DEX integration |
-| **Development** | TypeScript + Wagmi | Type-safe development |
+| Layer               | Technology              | Purpose                         |
+| ------------------- | ----------------------- | ------------------------------- |
+| **ZK Layer**        | Circom + SnarkJS        | Zero-knowledge proof generation |
+| **Smart Contracts** | Solidity + Foundry      | On-chain verification           |
+| **Frontend**        | NextJS + Scaffold-ETH 2 | User interface                  |
+| **Integration**     | Uniswap v4 Hooks        | DEX integration                 |
+| **Development**     | TypeScript + Wagmi      | Type-safe development           |
 
 ### Circuit Architecture
 
 #### Suitability Assessment Circuit
+
 - **Private Inputs**: 5 questionnaire responses (0-3 scale)
 - **Public Inputs**: Risk threshold and calculated profile
 - **Output**: Suitability verification (0 or 1)
 
 #### Private Swap Intent Circuit
+
 - **Private Inputs**: Amount, direction, sender, timestamp
 - **Public Outputs**: Commitment hash and verification data
 - **Purpose**: Prove swap intent without revealing sensitive details
@@ -95,7 +97,7 @@ yarn install
 
 ```bash
 # Start local Ethereum network (Scaffold-ETH 2)
-yarn chain
+yarn workspace foundry chain
 ```
 
 This command starts a local Ethereum network using Foundry. The network runs on your local machine and can be used for testing and development.
@@ -103,19 +105,16 @@ This command starts a local Ethereum network using Foundry. The network runs on 
 ### 3. Setup Zero-Knowledge Circuits
 
 ```bash
-# Setup ZK circuits and generate proofs
-yarn setup
-
 # Or setup specific circuits
-yarn setup-suitability      # Suitability assessment circuit
-yarn setup-private-swap     # Private swap intent circuit
+yarn workspace circom setup-suitability      # Suitability assessment circuit
+yarn workspace circom setup-private-swap     # Private swap intent circuit
 ```
 
 ### 4. Deploy Smart Contracts
 
 ```bash
 # Deploy contracts to local network
-yarn deploy
+yarn workspace @se-2/foundry deploy
 ```
 
 This command deploys the Rayls Hook smart contracts to the local network, including the ZK verifiers and Uniswap v4 hooks.
@@ -124,27 +123,39 @@ This command deploys the Rayls Hook smart contracts to the local network, includ
 
 ```bash
 # Start the NextJS frontend
-yarn start
+yarn workspace @se-2/nextjs start
 ```
 
 Visit your app on: `http://localhost:3000`. You can interact with the suitability assessment and test the ZK proof verification.
+
+### 6. Running tests
+
+```bash
+yarn workspace @se-2/foundry test
+```
+
+### 7. Check coverage
+
+```bash
+yarn workspace @se-2/foundry coverage
+```
 
 ## 🛠️ Development
 
 ### Available Commands
 
-| Command | Description |
-|---------|-------------|
-| `yarn chain` | Start local blockchain |
-| `yarn deploy` | Deploy smart contracts |
-| `yarn start` | Start frontend |
-| `yarn setup` | Setup ZK circuits (default: Suitability) |
-| `yarn prove` | Generate new ZK proof |
-| `yarn setup-suitability` | Setup Suitability circuit |
-| `yarn prove-suitability` | Generate Suitability proof |
-| `yarn setup-private-swap` | Setup PrivateSwapIntent circuit |
-| `yarn prove-private-swap` | Generate PrivateSwapIntent proof |
-| `yarn test` | Run tests |
+| Command                   | Description                              |
+| ------------------------- | ---------------------------------------- |
+| `yarn chain`              | Start local blockchain                   |
+| `yarn deploy`             | Deploy smart contracts                   |
+| `yarn start`              | Start frontend                           |
+| `yarn setup`              | Setup ZK circuits (default: Suitability) |
+| `yarn prove`              | Generate new ZK proof                    |
+| `yarn setup-suitability`  | Setup Suitability circuit                |
+| `yarn prove-suitability`  | Generate Suitability proof               |
+| `yarn setup-private-swap` | Setup PrivateSwapIntent circuit          |
+| `yarn prove-private-swap` | Generate PrivateSwapIntent proof         |
+| `yarn test`               | Run tests                                |
 
 ### Project Structure
 
@@ -181,12 +192,14 @@ yarn prove-private-swap
 ## 📋 Roadmap
 
 ### Phase 1: Core Infrastructure ✅
+
 - [x] ZK circuits implementation (Suitability + PrivateSwapIntent)
 - [x] Smart contract verifiers
 - [x] Basic Uniswap v4 hook integration
 - [x] ZK proof generation and verification pipeline
 
 ### Phase 2: Frontend Development 🚧
+
 - [ ] Complete questionnaire UI implementation
 - [ ] ZK proof generation interface
 - [ ] Real-time proof verification
@@ -194,6 +207,7 @@ yarn prove-private-swap
 - [ ] Integration with wallet providers
 
 ### Phase 3: Advanced Features 📋
+
 - [ ] Multi-circuit support and management
 - [ ] Advanced risk assessment algorithms
 - [ ] Compliance and regulatory features
@@ -201,6 +215,7 @@ yarn prove-private-swap
 - [ ] Mobile-responsive design
 
 ### Phase 4: Production Ready 🎯
+
 - [ ] Security audits and testing
 - [ ] Performance optimization
 - [ ] Documentation and tutorials
