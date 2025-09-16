@@ -18,10 +18,11 @@
 
 1. [🛡️ Suitability Verifier Logic](./docs/suitability.md) (click for more info) – A privacy-preserving investor suitability assessment system. It allows users to prove their investment suitability without revealing their specific questionnaire responses using Zero-Knowledge Proofs.
 
-2. [🔐 Private Swap Logic](./docs/privateSwaps.md) (click for more info) – Private swaps with an execution timestamp. Swap values remain hidden and are committed on-chain through a commitment ID, then later executed and validated and revealed with zkSNARK proofs. The values are also encrypted with an Auditor’s wallet public key (optional), and the ciphertext is stored on-chain, enabling the Auditor to independently verify commitments at any time.
+2. [🔐 Private Swap Logic](./docs/privateSwaps.md) (click for more info) – Private swaps with an execution timestamp. Swap values remain hidden and are committed on-chain through a commitment Id, then later revealed, validated and executed with zkSNARK proofs. The values are also encrypted (ECIES) using an Auditor’s wallet public key (optional) and the generated ciphertext is stored on-chain, enabling the Auditor to independently verify commitments at any time.
 
 ## 📌 Key Notes
 
+- More details about circom and zkSNARK [here](./packages/circom/README.md)
 - Private swap commitments and encrypted payloads are currently fully stored on-chain, but they could be stored in EigenDA with only lightweight references on-chain to reduce gas costs and improve scalability without compromising verifiability.
 - Only the beforeSwap hook is used, but the logic can be extended to beforeAddLiquidity as well.
 - The two features — Suitability Verifier and Private Swap Commitments — are independent, though private swap execution could optionally require passing the suitability check.
