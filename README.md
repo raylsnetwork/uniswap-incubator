@@ -23,7 +23,7 @@
 ## 📌 Key Notes
 
 - More details about circom and zkSNARK implementation [here](./packages/circom/README.md)
-- Private swap commitments and encrypted payloads are currently fully stored on-chain, but they could be stored in EigenDA with only lightweight references on-chain to reduce gas costs and improve scalability without compromising verifiability.
+- There's no partner integration but although Private swap commitments and encrypted payloads are currently fully stored on-chain, they could be stored in EigenDA with only lightweight references on-chain to reduce gas costs and improve scalability without compromising verifiability.
 - Only the beforeSwap hook is used, but the logic can be extended to beforeAddLiquidity as well.
 - The two features — Suitability Verifier and Private Swap Commitments — are independent, though private swap execution could optionally require passing the suitability check.
 

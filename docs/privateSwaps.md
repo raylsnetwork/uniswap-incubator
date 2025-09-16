@@ -8,7 +8,7 @@ Key use cases include:
 
 - MEV protection – hiding swap intent reduces frontrunning risk.
 
-- Large swaps – users executing large trades can split them into multiple commitments to minimize token price impact in the pool.
+- Large swaps without price impact – users executing large trades can split them into multiple commitments to minimize token price impact in the pool.
 
 - Compliance & oversight – DAOs and regulated protocols can prove onchain to an auditor the agreed swap schedules according to the defined tokenomics.
 
@@ -27,7 +27,7 @@ Key use cases include:
 
 - **Rayls Middleware**
 
-  - Encrypts swap params using Auditor's pub key.
+  - Encrypts swap params using Auditor's pub key (file encrypt.js).
   - Creates and holds zkSNARK proofs of knowledge of swap params for commitment `id`..
   - Generates commitment id using Auditor's encryption + Poseidon hash from zk proof.
   - Calls `storeCommitment(id, ciphertext, permit)` with:
@@ -69,7 +69,7 @@ Key use cases include:
 - **Auditor** can always:
 
   - Read `ciphertext` onchain.
-  - Decrypt using it's own private key.
+  - Decrypt using it's own private key (file decrypt.js).
   - Verify swap parameters offchain for compliance.
   - Validates if permit matches the encrypted values
 
