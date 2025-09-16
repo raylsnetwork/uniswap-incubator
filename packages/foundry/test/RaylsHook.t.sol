@@ -129,7 +129,10 @@ contract RaylsHookTest is Test, Deployers {
         currency0.transfer(invalidProofSender, 1e18);
     }
 
-    function testSwapRevertsWithInvalidProof() public {
+    /**
+     * Tests that a swap reverts if the suitability proof is invalid.
+     */
+    function testSuitabilitySwapWithInvalidProof() public {
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             RaylsHookHelper.loadSuitabilityProof(jsonSuitability);
 
@@ -140,6 +143,7 @@ contract RaylsHookTest is Test, Deployers {
         vm.startPrank(proofSender, proofSender);
         IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
 
+        // Revert if the proof is invalid
         vm.expectRevert();
         swapRouter.swapExactTokensForTokens({
             amountIn: amountIn,
@@ -154,13 +158,19 @@ contract RaylsHookTest is Test, Deployers {
         vm.stopPrank();
     }
 
-    function testVerifyProofInBeforeSwap() public {
+    /**
+     * Tests the suitability check before a swap.
+     */
+    function testSuitabilitySwap() public {
+        // We load our zkSNARK proof from the json file
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             RaylsHookHelper.loadSuitabilityProof(jsonSuitability);
 
         bytes memory proofData = abi.encode(pA, pB, pC, pubSignals);
+
         uint256 amountIn = 1e16;
 
+        // Revert if the proof is valid but the sender is not the one in the public signals
         vm.startPrank(invalidProofSender, invalidProofSender);
         IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
         vm.expectRevert();
@@ -175,10 +185,11 @@ contract RaylsHookTest is Test, Deployers {
         });
         vm.stopPrank();
 
+        // Now we use the user that matches the public signal of the zkSNARK proof
         vm.startPrank(proofSender, proofSender);
         IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
 
-        // Sucessful swap
+        // Now it should succeed
         BalanceDelta swapDelta = swapRouter.swapExactTokensForTokens({
             amountIn: amountIn,
             amountOutMin: 0,
@@ -188,14 +199,15 @@ contract RaylsHookTest is Test, Deployers {
             receiver: address(proofSender),
             deadline: block.timestamp + 1
         });
+
         vm.stopPrank();
 
         assertEq(int256(swapDelta.amount0()), -int256(amountIn));
-
-        // assertEq(selector, IHooks.beforeSwap.selector, "selector mismatch");
-        // delta and fee are placeholder, assert if needed
     }
 
+    /**
+     * Tests the suitability verifier directly.
+     */
     function testSuitabilityVerifier() public view {
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             RaylsHookHelper.loadSuitabilityProof(jsonSuitability);
@@ -205,6 +217,9 @@ contract RaylsHookTest is Test, Deployers {
         assertTrue(ok);
     }
 
+    /**
+     * Tests the private swap intent verifier directly.
+     */
     function testPrivateSwapIntentVerifier() public view {
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             RaylsHookHelper.loadPrivateSwapIntentProof(jsonPrivateSwap);
@@ -214,7 +229,20 @@ contract RaylsHookTest is Test, Deployers {
         assertTrue(ok);
     }
 
-    function testAPrivateSwap() public {
+    /**
+     * Tests the full flow of a private swap:
+     * 1. Loads proof and public signals from the json file
+     * 2. Loads the ciphertext for the auditor from the json file
+     * 3. Calculates the commitment ID off-chain using both the ZK Snark Poseidon hash and the ciphertext
+     * 4. Stores the commitment on-chain
+     * 5. Does multiple negative revert tests.
+     * 6. Executes the commitment successfully
+     * 7. Checks the pool delta from the pool
+     * 8. Tests the auditor part by decrypting the ciphertext and checking that the poseidon hash matches the one from the proof
+     *    This proves that the values in the encrypted payload: amountIn, zeroForOne, sender, timestamp are correct.
+     *    And that the commitment ID is correct.
+     */
+    function testPrivateSwap() public {
         // Get the proof and public signals from the json file
         RaylsHookHelper.PrivateSwapPublic memory proofCorrect =
             RaylsHookHelper.getPublicSignalsFromPrivateSwapIntentProof(jsonPrivateSwap, false, false);
@@ -311,7 +339,7 @@ contract RaylsHookTest is Test, Deployers {
      * This simulates the auditor decrypting the ciphertext and checking that the commitment ID is correct.
      * Which proves that the values in the encrypted payload: amountIn, zeroForOne, sender, timestamp are correct.
      */
-    function test_EncryptedCommitmentForAuditor() public {
+    function testEncryptedCommitmentForAuditor() public {
         // Get the proof and public signals from the json file
         RaylsHookHelper.PrivateSwapPublic memory proofCorrect =
             RaylsHookHelper.getPublicSignalsFromPrivateSwapIntentProof(jsonPrivateSwap, false, false);
@@ -339,7 +367,17 @@ contract RaylsHookTest is Test, Deployers {
         assertEq(proofCorrect.poseidonHash, decryptedPoseidonHash);
     }
 
-    function test_cancelCommitment() public {
+    /**
+     * Tests the full flow of cancelling a private swap commitment:
+     * 1. Loads proof and public signals from the json file
+     * 2. Loads the ciphertext for the auditor from the json file
+     * 3. Calculates the commitment ID off-chain using both the ZK Snark Poseidon hash and the ciphertext
+     * 4. Stores the commitment on-chain
+     * 5. Does multiple negative revert tests.
+     * 6. Cancels the commitment successfully
+     * 7. Tries to execute it and reverts
+     */
+    function testCancelCommitment() public {
         // Get the proof and public signals from the json file
         RaylsHookHelper.PrivateSwapPublic memory proofCorrect =
             RaylsHookHelper.getPublicSignalsFromPrivateSwapIntentProof(jsonPrivateSwap, false, false);
