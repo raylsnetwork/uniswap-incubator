@@ -33,7 +33,6 @@ Key use cases include:
   - Calls `storeCommitment(id, ciphertext, permit)` with:
     - `id`: unique hash of the commitment.
     - `ciphertext`: encrypted swap details (amount, direction, timestamp).
-    - `encKeyForAuditor`: ECIES encryption key for auditor.
     - `permit`: ERC20 permit signature.
     - Contract records commitment and emits `CommitmentStored`.
 
@@ -69,7 +68,7 @@ Key use cases include:
 
 - **Auditor** can always:
 
-  - Read `ciphertext` + `encKeyForAuditor` onchain.
+  - Read `ciphertext` onchain.
   - Decrypt using it's own private key.
   - Verify swap parameters offchain for compliance.
   - Validates if permit matches the encrypted values
