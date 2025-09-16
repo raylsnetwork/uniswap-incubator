@@ -17,7 +17,7 @@ Key use cases include:
 ## 🔄 Flow
 
 <p align="left">
-  <img src="./RaylsHook_sequence_diagram.svg" alt="Private Swap Diagram" width="800"/>
+  <img src="./RaylsHook_private_swaps_diagram.svg" alt="Private Swap Diagram" width="800"/>
 </p>
 
 ### 1. Create Commitment

@@ -16,7 +16,7 @@
 
 **Rayls Hook** introduces two complementary ZK-SNARK enabled features built on Uniswap v4 hooks:
 
-1. 🛡️ Suitability Verifier Logic – A privacy-preserving investor suitability assessment system. It allows users to prove their investment suitability without revealing their specific questionnaire responses using Zero-Knowledge Proofs.
+1. [🛡️ Suitability Verifier Logic](./docs/suitability.md) (click for more info) – A privacy-preserving investor suitability assessment system. It allows users to prove their investment suitability without revealing their specific questionnaire responses using Zero-Knowledge Proofs.
 
 2. [🔐 Private Swap Logic](./docs/privateSwaps.md) (click for more info) – Private swaps with an execution timestamp. Swap values remain hidden and are committed on-chain through a commitment ID, then later executed and validated and revealed with zkSNARK proofs. The values are also encrypted with an Auditor’s wallet public key (optional), and the ciphertext is stored on-chain, enabling the Auditor to independently verify commitments at any time.
 
