@@ -290,16 +290,17 @@ contract RaylsHookTest is Test, Deployers {
         hook.executeCommitment(poolKey, id, proofCorrect.proofData);
         vm.stopPrank();
 
+        // Test the auditor part
         (bytes memory onChainCiphertext,, RaylsHook.CommitmentStatus status) = hook.commitments(poolKey.toId(), id);
 
         assertEq(uint8(status), uint8(RaylsHook.CommitmentStatus.Executed));
         assertEq(onChainCiphertext, ciphertextForAuditor);
 
-        string memory hexOnChainCiphertext = vm.toString(onChainCiphertext);
+        string memory onChainCiphertextStr = vm.toString(onChainCiphertext);
 
         // Decrypt off-chain and use the private values to calculate the commitment ID
         // It must match to the one stored on-chain created by the circuit.
-        uint256 decryptedPoseidonHash = RaylsHookHelper.decryptCiphertext(vm, auditorPk, hexOnChainCiphertext);
+        uint256 decryptedPoseidonHash = RaylsHookHelper.decryptCiphertext(vm, auditorPk, onChainCiphertextStr);
 
         // Check that commitmentId is correct
         assertEq(proofCorrect.poseidonHash, decryptedPoseidonHash);
@@ -317,11 +318,22 @@ contract RaylsHookTest is Test, Deployers {
 
         // Get the ciphertext for the auditor from the json file
         bytes memory ciphertextForAuditor = RaylsHookHelper.getJsonCiphertext(jsonEncryptedPayload);
-        string memory hexOnChainCiphertext = vm.toString(ciphertextForAuditor);
+        string memory onChainCiphertextStr = vm.toString(ciphertextForAuditor);
 
+        // First lets try with a fake ciphertext and see that cannot decrypt it
+        // The wallet here was set at an invalid value so decryption will fail
+        bytes memory fakeCiphertext =
+            hex"ee86f15b901b6c155b8c3ec570e50f4c04b86d3cf44aafa7cc640a3e141354da40eef4c6ed78fd8077be72c3e853e435cf9fa2d70164501cd37efec0dc0a04119f66ecf007b190100c856d5aae7a5fec4d38b39c99bed1d8923635820c81bb9d8d52794056400a7d19f6e8ce663c79684cc19a7935ca8189811169a5fbe5c1147fd80f3a83207217c1a895862b162c89ce85dc51c53571c1202b90e1e710cb801d47b4aabeeac981197ba285c399c344ff09d56a386f26169726e8f29c9ff4c45c033816426f6d8d4befadb6f008d2bf8537022f5aaa9e93920fa8e959c0ca30e0edabd55bcfcbc3050343426ea294e61321e1885efe3db4be70f4bc9b8a0b2f4c";
+        string memory fakeCiphertextStr = vm.toString(fakeCiphertext);
+        uint256 decryptedPoseidonHash = RaylsHookHelper.decryptCiphertext(vm, auditorPk, fakeCiphertextStr);
+
+        // Check that hashes are different
+        assertNotEq(proofCorrect.poseidonHash, decryptedPoseidonHash);
+
+        // Now a successful decryption
         // Decrypt off-chain and use the poseidonHash for comparison
         // It must match to the one stored on-chain created by the circuit.
-        uint256 decryptedPoseidonHash = RaylsHookHelper.decryptCiphertext(vm, auditorPk, hexOnChainCiphertext);
+        decryptedPoseidonHash = RaylsHookHelper.decryptCiphertext(vm, auditorPk, onChainCiphertextStr);
 
         // Check that hashes are equal
         assertEq(proofCorrect.poseidonHash, decryptedPoseidonHash);
