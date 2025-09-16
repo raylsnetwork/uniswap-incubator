@@ -1,0 +1,84 @@
+## 📄 `docs/privateSwaps.md`
+
+🔐 Private Swap Commitments
+
+This Uniswap v4 hook extension introduces encrypted swap commitments, allowing users to conceal their swap parameters until execution while preserving permissionless execution and optional auditor oversight.
+
+Private swaps are created with an execution timestamp. Swap values are hidden and committed on-chain via a unique commitment ID, then later revealed and validated with zkSNARK proofs. Optionally, swap details are encrypted with an Auditor’s public key and the ciphertext is stored on-chain, enabling independent verification at any time.
+
+Key use cases include:
+
+- MEV protection – hiding swap intent reduces frontrunning risk; at reveal time, private bundlers can be used for additional protection.
+
+- Large swaps – users executing large trades can split them into multiple commitments to minimize pool price impact.
+
+- Compliance & oversight – DAOs and regulated protocols can prove swap schedules on-chain, with auditors able to verify encrypted commitments.
+
+## 🔄 Flow
+
+<p align="left">
+  <img src="./RaylsHook_diagram.svg" alt="Private Swap Diagram" width="600"/>
+</p>
+
+### 1. Create Commitment
+
+- **User** through a UI:
+
+  - Creates a swap commitment by defining amountIn, direction, timestamp.
+  - Signs and sends along an ERC20 permit
+
+- **Rayls Middleware**
+
+  - Encrypts swap params using Auditor's pub key.
+  - Creates and holds zkSNARK proofs of knowledge of swap params for commitment `id`..
+  - Generates commitment id using Auditor's encryption + Poseidon hash from zk proof.
+  - Calls `storeCommitment(id, ciphertext, permit)` with:
+    - `id`: unique hash of the commitment.
+    - `ciphertext`: encrypted swap details (amount, direction, timestamp).
+    - `encKeyForAuditor`: ECIES encryption key for auditor.
+    - `permit`: ERC20 permit signature.
+    - Contract records commitment and emits `CommitmentStored`.
+
+### 2. Execute Commitment
+
+- **Rayls Middleware**
+
+  - Monitors for commitments with expired timestamps.
+  - Triggers commitment execution when timestamp is reached
+  - When time is reached, calls `executeCommitment(id, zkProof)`.
+
+- **Rayls Hook**
+
+  - Verifies:
+    - zkSNARK proof validity.
+    - Commitment matches proof.
+    - Permit authorizes token pull.
+  - Contract executes swap via Uniswap v4 `PoolManager`.
+  - Settles balances on callback
+  - Emits `CommitmentExecuted`.
+
+### 3. Cancel Commitment
+
+- **User**
+  - Triggers a commitment cancellation through a UI, before execution
+- **Rayls Middleware**
+  - Calls `cancelCommitment(id, zkProof)`.
+- **Rayls Hook**
+  - Marks commitment as canceled, clears heavy storage.
+  - Emits `CommitmentCanceled`.
+
+### 4. Auditor Flow
+
+- **Auditor** can always:
+
+  - Read `ciphertext` + `encKeyForAuditor` onchain.
+  - Decrypt using it's own private key.
+  - Verify swap parameters offchain for compliance.
+  - Validates if permit matches the encrypted values
+
+---
+
+## Key notes
+
+- We use circom for zksnark and AES encryption for the auditor. Encryption in circom is too expensive.
+- We could enforce the auditor to approve a commitement cancelation.
