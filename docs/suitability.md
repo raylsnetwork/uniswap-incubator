@@ -3,13 +3,13 @@
 The Suitability Verifier Logic ensures that **investors can prove compliance** with regulatory requirements without revealing their raw questionnaire responses. This is done using a **zkSNARK proof**.
 
 <p align="left">
-   <img src="./SuitabilityQuestionaire.png" alt="Suitability Questionnaire" width="300"/>
+   <img src="./SuitabilityQuestionaire.png" alt="Suitability Questionnaire" width="400"/>
 </p>
 
 ## 🔄 Flow
 
 <p align="left">
-  <img src="./RaylsHook_suitability_diagram.png" alt="Suitability Diagram" width="150"/>
+  <img src="./RaylsHook_suitability_diagram.png" alt="Suitability Diagram" width="200"/>
 </p>
 
 1. **Investor (User)**
