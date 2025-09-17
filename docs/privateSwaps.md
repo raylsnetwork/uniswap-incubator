@@ -8,7 +8,7 @@ Key use cases include:
 
 - MEV protection – hiding swap intent reduces frontrunning risk.
 
-- Large swaps without price impact – users executing large trades can split them into multiple commitments to minimize token price impact in the pool.
+- Price impact mitigation for large swaps – users executing large trades can split them into multiple commitments to minimize token price impact in the pool.
 
 - Compliance & oversight – DAOs and regulated protocols can prove onchain to an auditor the agreed swap schedules according to the defined tokenomics.
 

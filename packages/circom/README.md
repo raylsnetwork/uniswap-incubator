@@ -48,7 +48,7 @@ The private swap intent circuit implements:
 
 - **Private inputs**: amount, direction, sender, timestamp
 - **Public outputs**: poseidon hash and public parameters
-- **Purpose**: Prove swap intent without revealing sensitive details
+- **Purpose**: Prove it knows valid private inputs (swap params) that hash to the poseidon hash, without revealing sensitive details
 
 ## 🚀 Installation and Setup
 
