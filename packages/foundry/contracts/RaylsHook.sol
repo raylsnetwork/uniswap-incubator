@@ -13,9 +13,19 @@ import { SuitabilityVerifier } from "./SuitabilityVerifier.sol";
 import { console } from "forge-std/console.sol";
 
 import { PrivateSwapIntentVerifier } from "./PrivateSwapIntentVerifier.sol";
+import { BalanceDelta } from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+import { TickMath } from "@uniswap/v4-core/src/libraries/TickMath.sol";
+import { Currency } from "@uniswap/v4-core/src/types/Currency.sol";
+import { IUnlockCallback } from "@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { console } from "forge-std/console.sol";
 
-contract RaylsHook is BaseHook {
+contract RaylsHook is BaseHook, IUnlockCallback, ReentrancyGuard {
     using PoolIdLibrary for PoolKey;
+    using SafeERC20 for IERC20;
 
     // NOTE: ---------------------------------------------------------
     // state variables should typically be unique to a pool
@@ -30,16 +40,34 @@ contract RaylsHook is BaseHook {
     SuitabilityVerifier public suitabilityVerifier;
     PrivateSwapIntentVerifier public privateSwapIntentVerifier;
 
-    mapping(uint256 => Commitment) public commitments;
+    mapping(PoolId poolId => mapping(uint256 => Commitment)) public commitments;
 
-    event CommitmentStored(uint256 id, address indexed sender);
-    event Revealed(uint256 id, address indexed revealer);
+    event CommitmentStored(uint256 indexed id, address indexed sender, bytes, bytes);
+    event CommitmentExecuted(uint256 indexed id, address indexed sender);
+    event CommitmentCancelled(uint256 indexed id, address indexed canceller);
+
+    // Errors
+    error CommitmentMismatch(bytes32 pubId, uint256 expectedId);
+    error CommitmentNotReady(uint256 notBefore, uint256 currentTime);
+    error InvalidWallet(address provided, address expected);
+    error InvalidSuitabilityProof();
+    error InvalidPrivateSwapIntentProof();
+    error AlreadyExists(uint256 id);
+    error CommitmentNotActive(uint256 id);
+    error CommitmentNotFound(uint256 id);
+
+    enum CommitmentStatus {
+        None, // default, not stored
+        Active, // stored but not yet executed
+        Executed, // executed successfully
+        Cancelled // canceled by creator
+
+    }
 
     struct Commitment {
-        bytes ciphertext; // AES/GCM ciphertext (includes tag)
-        bytes encKeyForAuditor; // encrypted symmetric key for auditor
-        bool exists;
-        bool executed;
+        bytes ciphertextForAuditor; //ECIES-encrypted swap details for auditor
+        bytes permit;
+        CommitmentStatus status;
     }
 
     constructor(IPoolManager _poolManager, address _suitabilityVerifier, address _privateSwapIntentVerifier)
@@ -53,12 +81,12 @@ contract RaylsHook is BaseHook {
         return Hooks.Permissions({
             beforeInitialize: false,
             afterInitialize: false,
-            beforeAddLiquidity: true,
+            beforeAddLiquidity: false,
             afterAddLiquidity: false,
-            beforeRemoveLiquidity: true,
+            beforeRemoveLiquidity: false,
             afterRemoveLiquidity: false,
             beforeSwap: true,
-            afterSwap: true,
+            afterSwap: false,
             beforeDonate: false,
             afterDonate: false,
             beforeSwapReturnDelta: false,
@@ -68,10 +96,10 @@ contract RaylsHook is BaseHook {
         });
     }
 
-    // -----------------------------------------------
-    // NOTE: see IHooks.sol for function documentation
-    // -----------------------------------------------
-
+    /**
+     * Here we verify the suitability proof and that the wallet in the proof matches the transaction origin
+     *
+     */
     function _beforeSwap(address, PoolKey calldata key, SwapParams calldata, bytes calldata data)
         internal
         override
@@ -81,40 +109,228 @@ contract RaylsHook is BaseHook {
             abi.decode(data, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
 
         uint256 walletInProof = pubSignals[2]; // index 2 because it's the 3rd public signal
+
+        // We want to identify the originator of the transaction
         address origin = _determineOrigin(msg.sender);
 
-        require(walletInProof == uint256(uint160(origin)), "Invalid wallet for this proof");
+        // Verify the wallet address in the proof matches the transaction origin
+        if (walletInProof != uint256(uint160(origin))) {
+            revert InvalidWallet(address(uint160(walletInProof)), origin);
+        }
 
+        // Verify the Suitability proof
         bool suitabilityOk = suitabilityVerifier.verifyProof(pA, pB, pC, pubSignals);
-        require(suitabilityOk, "Invalid Suitability proof");
+        if (!suitabilityOk) {
+            revert InvalidSuitabilityProof();
+        }
 
         return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
 
-    function _afterSwap(address, PoolKey calldata key, SwapParams calldata, BalanceDelta, bytes calldata)
-        internal
-        override
-        returns (bytes4, int128)
-    {
-        return (BaseHook.afterSwap.selector, 0);
+    /**
+     * @notice Stores a new encrypted swap commitment onchain.
+     * @dev Each commitment is uniquely identified by a commitment `id` under a specific pool key.
+     *      Reverts if a commitment with the same `id` already exists.
+     *      The ciphertextForAuditor allows a designated auditor to decrypt the swap parameters offchain.
+     * @param key Pool key identifying the Uniswap v4 pool this commitment belongs to.
+     * @param commitmentId Unique identifier for the commitment (Poseidon/keccak hash).
+     * @param ciphertextForAuditor Encrypted swap data for the auditor
+     * @param permit ERC20 permit signature data, allowing token transfers at execution.
+     * Emits a {CommitmentStored} event.
+     */
+    function storeCommitment(
+        PoolKey calldata key,
+        uint256 commitmentId,
+        bytes calldata ciphertextForAuditor,
+        bytes calldata permit
+    ) external {
+        if (commitments[key.toId()][commitmentId].status != CommitmentStatus.None) {
+            revert AlreadyExists(commitmentId);
+        }
+
+        commitments[key.toId()][commitmentId] =
+            Commitment({ ciphertextForAuditor: ciphertextForAuditor, permit: permit, status: CommitmentStatus.Active });
+        emit CommitmentStored(commitmentId, msg.sender, ciphertextForAuditor, permit);
     }
 
-    function _beforeAddLiquidity(address, PoolKey calldata key, ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        override
-        returns (bytes4)
-    {
-        beforeAddLiquidityCount[key.toId()]++;
-        return BaseHook.beforeAddLiquidity.selector;
+    /**
+     * @notice Cancels a previously stored commitment before execution.
+     * @dev Marks the commitment as canceled so it cannot be executed.
+     *      Reverts if the commitment does not exist, was already executed, or already canceled.
+     *      Large storage fields may be cleared to save gas, but the status is retained for auditability.
+     * @param key Pool key identifying the Uniswap v4 pool this commitment belongs to.
+     * @param commitmentId Unique identifier of the commitment to cancel.
+     * @param zkSnarkProof ABI-encoded zkSNARK proof data (pA, pB, pC, pubSignals) to authorize the cancellation.
+     * Emits a {CommitmentCancelled} event.
+     */
+    function cancelCommitment(PoolKey calldata key, uint256 commitmentId, bytes calldata zkSnarkProof) external {
+        Commitment storage c = commitments[key.toId()][commitmentId];
+        if (c.status != CommitmentStatus.Active) {
+            revert CommitmentNotActive(commitmentId);
+        }
+
+        (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
+            abi.decode(zkSnarkProof, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
+
+        // Making sure we are executing the right commitment
+        bytes32 commitmentIdFromZK = getCommitmentId(pubSignals[0], c.ciphertextForAuditor);
+
+        if (commitmentIdFromZK != bytes32(commitmentId)) {
+            revert CommitmentMismatch(commitmentIdFromZK, commitmentId);
+        }
+
+        bool privateVerifierOk = privateSwapIntentVerifier.verifyProof(pA, pB, pC, pubSignals);
+        if (!privateVerifierOk) {
+            revert InvalidPrivateSwapIntentProof();
+        }
+
+        // We can cancel now
+        c.status = CommitmentStatus.Cancelled;
+        delete c.ciphertextForAuditor;
+        delete c.permit;
+        emit CommitmentCancelled(commitmentId, msg.sender);
     }
 
-    function _beforeRemoveLiquidity(address, PoolKey calldata key, ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        override
-        returns (bytes4)
+    /**
+     * @notice Executes a previously stored encrypted swap commitment once its conditions are met.
+     * @dev Verifies a zkSNARK proof to ensure the executor knows the swap commitment’s plaintext
+     *      and that the onchain commitment id is the result of the provided proof + encryption for auditor.
+     *      It uses ERC20 permit to pull tokens from the original sender, then executes a Uniswap v4 swap through
+     *      the PoolManager. Marks the commitment as executed to prevent replay.
+     * @param key Pool key identifying the Uniswap v4 pool this commitment belongs to.
+     * @param commitmentId Unique identifier of the commitment to execute.
+     * @param zkSnarkProof ABI-encoded zkSNARK proof data (pA, pB, pC, pubSignals) to authorize the execution.
+     * @return delta Net balance delta returned from the swap execution.
+     * Emits a {CommitmentExecuted} event (if you add one).
+     */
+    function executeCommitment(PoolKey calldata key, uint256 commitmentId, bytes calldata zkSnarkProof)
+        external
+        nonReentrant
+        returns (BalanceDelta)
     {
-        beforeRemoveLiquidityCount[key.toId()]++;
-        return BaseHook.beforeRemoveLiquidity.selector;
+        Commitment storage commitment = commitments[key.toId()][commitmentId];
+        if (commitment.status == CommitmentStatus.None) {
+            revert CommitmentNotFound(commitmentId);
+        }
+        if (commitment.status != CommitmentStatus.Active) {
+            revert CommitmentNotActive(commitmentId);
+        }
+
+        (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
+            abi.decode(zkSnarkProof, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
+
+        if (pubSignals[4] > block.timestamp) {
+            revert CommitmentNotReady(pubSignals[4], block.timestamp);
+        }
+
+        // Making sure we are executing the right commitment
+        bytes32 commitmentIdFromZK = getCommitmentId(
+            pubSignals[0], // Poseidon hash
+            commitment.ciphertextForAuditor
+        );
+
+        if (commitmentIdFromZK != bytes32(commitmentId)) {
+            revert CommitmentMismatch(commitmentIdFromZK, commitmentId);
+        }
+
+        bool privateVerifierOk = privateSwapIntentVerifier.verifyProof(pA, pB, pC, pubSignals);
+        if (!privateVerifierOk) {
+            revert InvalidPrivateSwapIntentProof();
+        }
+
+        // We can swap now
+        // Mark as executed before any external transfer/call
+        commitment.status = CommitmentStatus.Executed;
+
+        // Run the permit if needed
+        if (commitment.permit.length > 0) {
+            (uint8 v, bytes32 r, bytes32 s) = splitSig(commitment.permit);
+            IERC20Permit(Currency.unwrap(key.currency0)).permit(
+                address(uint160(pubSignals[3])), address(this), pubSignals[1], pubSignals[4] + 1 days, v, r, s
+            );
+        }
+
+        // First transfer the tokens to the hook contract
+        IERC20(Currency.unwrap(key.currency0)).safeTransferFrom(
+            address(uint160(pubSignals[3])), address(this), pubSignals[1]
+        );
+
+        // Then unlock the PoolManager to execute the swap
+        bool zeroForOne = pubSignals[2] == 1 ? true : false;
+        bytes memory callbackReturn = poolManager.unlock(
+            abi.encode(
+                key,
+                SwapParams({
+                    zeroForOne: zeroForOne,
+                    amountSpecified: -int256(pubSignals[1]),
+                    // No slippage limits (maximum slippage possible)
+                    sqrtPriceLimitX96: zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+                })
+            )
+        );
+
+        (BalanceDelta delta) = abi.decode(callbackReturn, (BalanceDelta));
+        emit CommitmentExecuted(commitmentId, msg.sender);
+        return delta;
+    }
+
+    function swapAndSettleBalances(PoolKey memory key, SwapParams memory params) internal returns (BalanceDelta) {
+        // Conduct the swap inside the Pool Manager
+        BalanceDelta delta = poolManager.swap(key, params, "");
+
+        // If we just did a zeroForOne swap
+        // We need to send Token 0 to PM, and receive Token 1 from PM
+        if (params.zeroForOne) {
+            // Negative Value => Money leaving user's wallet
+            // Settle with PoolManager
+            if (delta.amount0() < 0) {
+                _settle(key.currency0, uint128(-delta.amount0()));
+            }
+
+            // Positive Value => Money coming into user's wallet
+            // Take from PM
+            if (delta.amount1() > 0) {
+                _take(key.currency1, uint128(delta.amount1()));
+            }
+        } else {
+            if (delta.amount1() < 0) {
+                _settle(key.currency1, uint128(-delta.amount1()));
+            }
+
+            if (delta.amount0() > 0) {
+                _take(key.currency0, uint128(delta.amount0()));
+            }
+        }
+
+        return delta;
+    }
+
+    function _settle(Currency currency, uint128 amount) internal {
+        // Transfer tokens to PM and let it know
+        poolManager.sync(currency);
+        currency.transfer(address(poolManager), amount);
+        poolManager.settle();
+    }
+
+    function _take(Currency currency, uint128 amount) internal {
+        // Take tokens out of PM to our hook contract
+        poolManager.take(currency, address(this), amount);
+    }
+
+    function unlockCallback(bytes calldata data) external returns (bytes memory) {
+        (PoolKey memory key, SwapParams memory params) = abi.decode(data, (PoolKey, SwapParams));
+        BalanceDelta delta = swapAndSettleBalances(key, params);
+        return abi.encode(delta);
+    }
+
+    function splitSig(bytes memory sig) internal pure returns (uint8 v, bytes32 r, bytes32 s) {
+        require(sig.length == 65, "bad sig length");
+
+        assembly {
+            r := mload(add(sig, 32))
+            s := mload(add(sig, 64))
+            v := byte(0, mload(add(sig, 96)))
+        }
     }
 
     /**
@@ -135,31 +351,7 @@ contract RaylsHook is BaseHook {
         }
     }
 
-    function executeCommitment(uint256 id, bytes calldata data) external {
-        require(!commitments[id].executed, "already executed");
-
-        (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
-            abi.decode(data, (uint256[2], uint256[2][2], uint256[2], uint256[5]));
-
-        // Making sure we are executing the right commitment
-        bytes memory pubId = abi.encodePacked(
-            pubSignals[0], // Poseidon hash of (amount, recipient, nonce)
-            commitments[id].ciphertext,
-            commitments[id].encKeyForAuditor
-        );
-        require(uint256(keccak256(pubId)) == id, "commitment mismatch");
-        require(pubSignals[2] == 1, "Not marked as executed");
-        require(pubSignals[4] <= block.timestamp, "Commitment can not be executed yet");
-
-        bool privateVerifierOk = privateSwapIntentVerifier.verifyProof(pA, pB, pC, pubSignals);
-        require(privateVerifierOk, "Invalid PrivateSwapIntent proof");
-        commitments[id].executed = true;
-    }
-
-    function storeCommitment(uint256 id, bytes calldata ciphertext, bytes calldata encKeyForAuditor) external {
-        require(!commitments[id].exists, "already exists");
-        commitments[id] =
-            Commitment({ ciphertext: ciphertext, encKeyForAuditor: encKeyForAuditor, exists: true, executed: false });
-        emit CommitmentStored(id, msg.sender);
+    function getCommitmentId(uint256 poseidonHash, bytes memory cipherText) public pure returns (bytes32) {
+        return keccak256(abi.encode(poseidonHash, cipherText));
     }
 }

@@ -34,32 +34,21 @@ async function main() {
 
   const message = Buffer.concat([amountBuf, zeroForOneBuf, senderBuf, timestampBuf]);
 
-  // Symmetric key K
-  const K = crypto.randomBytes(32);
-
-  // Encrypt the message with AES-GCM
-  const ciphertext = aesGcmEncrypt(K, message);
-
   // Encrypt K with auditor’s public key (ECIES)
-  const encKeyForAuditor = await eccrypto.encrypt(
+  const encForAuditor = await eccrypto.encrypt(
     Buffer.from(pubKeyUncompressed.slice(2), "hex"), // drop 0x
-    K
+    message
   );
 
   const encryptedBuffer = Buffer.concat([
-    encKeyForAuditor.iv,             // 16 bytes
-    encKeyForAuditor.ephemPublicKey, // 65 bytes
-    encKeyForAuditor.ciphertext,     // variable
-    encKeyForAuditor.mac              // 32 bytes
+    encForAuditor.iv,             // 16 bytes
+    encForAuditor.ephemPublicKey, // 65 bytes
+    encForAuditor.ciphertext,     // variable
+    encForAuditor.mac              // 32 bytes
   ]);
 
- // Convert to BytesLike
- const encKeyForAuditorBytes = ethers.getBytes(encryptedBuffer);
- const ciphertextBytes = ethers.getBytes("0x" + ciphertext.toString("hex"));
-
  const jsonData = {
-    encKeyForAuditor: ethers.hexlify(encKeyForAuditorBytes),
-    ciphertext: ethers.hexlify(ciphertextBytes)
+    ciphertextForAuditor: ethers.hexlify(encryptedBuffer)
   };
   
   await fs.writeFile("../foundry/inputs/encryptedPayload.json", JSON.stringify(jsonData, null, 2));

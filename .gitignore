@@ -22,11 +22,12 @@ node_modules
 # cli
 dist
 
-# artifacts
-packages/circom/artifacts
-packages/foundry/inputs
+# coverage
+packages/foundry/coverage
+lcov.info
 
 # Build artifacts
+packages/foundry/inputs
 packages/foundry/out/
 packages/foundry/broadcast/
 packages/foundry/cache/

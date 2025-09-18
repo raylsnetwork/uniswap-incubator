@@ -36,8 +36,12 @@ contract RaylsHookTest is Test, Deployers {
     using CurrencyLibrary for Currency;
     using StateLibrary for IPoolManager;
 
-    address proofSender = 0x1234567890AbcdEF1234567890aBcdef12345678;
     address invalidProofSender = 0x876543210FedCBa9876543210fedcBA987654321;
+
+    // Private key for proofSender for wallet 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+    uint256 proofSenderPk = 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
+    address proofSender = vm.addr(proofSenderPk);
+
     // Private key for Auditor for wallet 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
     string auditorPk = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
@@ -84,10 +88,7 @@ contract RaylsHookTest is Test, Deployers {
 
         // Deploy the hook to an address with the correct flags
         address flags = address(
-            uint160(
-                Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG
-                    | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG
-            ) ^ (0x4444 << 144) // Namespace the hook to avoid collisions
+            uint160(Hooks.BEFORE_SWAP_FLAG) ^ (0x4444 << 144) // Namespace the hook to avoid collisions
         );
         bytes memory constructorArgs = abi.encode(poolManager, suitabilityVerifier, privateSwapIntentVerifier); // Add all the necessary constructor arguments from the hook
         deployCodeTo("RaylsHook.sol:RaylsHook", constructorArgs, flags);
@@ -128,13 +129,48 @@ contract RaylsHookTest is Test, Deployers {
         currency0.transfer(invalidProofSender, 1e18);
     }
 
-    function testVerifyProofInBeforeSwap() public {
+    /**
+     * Tests that a swap reverts if the suitability proof is invalid.
+     */
+    function testSuitabilitySwapWithInvalidProof() public {
+        (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
+            RaylsHookHelper.loadSuitabilityProof(jsonSuitability);
+
+        uint256[2] memory fakePA = [uint256(1), pA[1]];
+        bytes memory fakeProofData = abi.encode(fakePA, pB, pC, pubSignals);
+
+        uint256 amountIn = 1e16;
+        vm.startPrank(proofSender, proofSender);
+        IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
+
+        // Revert if the proof is invalid
+        vm.expectRevert();
+        swapRouter.swapExactTokensForTokens({
+            amountIn: amountIn,
+            amountOutMin: 0,
+            zeroForOne: true,
+            poolKey: poolKey,
+            hookData: fakeProofData,
+            receiver: address(proofSender),
+            deadline: block.timestamp + 1
+        });
+
+        vm.stopPrank();
+    }
+
+    /**
+     * Tests the suitability check before a swap.
+     */
+    function testSuitabilitySwap() public {
+        // We load our zkSNARK proof from the json file
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             RaylsHookHelper.loadSuitabilityProof(jsonSuitability);
 
         bytes memory proofData = abi.encode(pA, pB, pC, pubSignals);
+
         uint256 amountIn = 1e16;
 
+        // Revert if the proof is valid but the sender is not the one in the public signals
         vm.startPrank(invalidProofSender, invalidProofSender);
         IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
         vm.expectRevert();
@@ -149,93 +185,261 @@ contract RaylsHookTest is Test, Deployers {
         });
         vm.stopPrank();
 
+        // Now we use the user that matches the public signal of the zkSNARK proof
         vm.startPrank(proofSender, proofSender);
         IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
 
+        // Now it should succeed
         BalanceDelta swapDelta = swapRouter.swapExactTokensForTokens({
             amountIn: amountIn,
             amountOutMin: 0,
             zeroForOne: true,
             poolKey: poolKey,
-            hookData: proofData, // pass proof here
+            hookData: proofData,
             receiver: address(proofSender),
             deadline: block.timestamp + 1
         });
+
         vm.stopPrank();
 
         assertEq(int256(swapDelta.amount0()), -int256(amountIn));
-
-        // assertEq(selector, IHooks.beforeSwap.selector, "selector mismatch");
-        // delta and fee are placeholder, assert if needed
     }
 
+    /**
+     * Tests the suitability verifier directly.
+     */
     function testSuitabilityVerifier() public view {
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             RaylsHookHelper.loadSuitabilityProof(jsonSuitability);
 
         // If your verifier is public in the hook contract, call it directly:
         bool ok = suitabilityVerifier.verifyProof(pA, pB, pC, pubSignals);
-        assertTrue(ok); // this will fail if verifyProof==false
+        assertTrue(ok);
     }
 
+    /**
+     * Tests the private swap intent verifier directly.
+     */
     function testPrivateSwapIntentVerifier() public view {
         (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
             RaylsHookHelper.loadPrivateSwapIntentProof(jsonPrivateSwap);
 
         // If your verifier is public in the hook contract, call it directly:
         bool ok = privateSwapIntentVerifier.verifyProof(pA, pB, pC, pubSignals);
-        assertTrue(ok); // this will fail if verifyProof==false
+        assertTrue(ok);
     }
 
+    /**
+     * Tests the full flow of a private swap:
+     * 1. Loads proof and public signals from the json file
+     * 2. Loads the ciphertext for the auditor from the json file
+     * 3. Calculates the commitment ID off-chain using both the ZK Snark Poseidon hash and the ciphertext
+     * 4. Stores the commitment on-chain
+     * 5. Does multiple negative revert tests.
+     * 6. Executes the commitment successfully
+     * 7. Checks the pool delta from the pool
+     * 8. Tests the auditor part by decrypting the ciphertext and checking that the poseidon hash matches the one from the proof
+     *    This proves that the values in the encrypted payload: amountIn, zeroForOne, sender, timestamp are correct.
+     *    And that the commitment ID is correct.
+     */
     function testPrivateSwap() public {
-        (uint256[2] memory pA, uint256[2][2] memory pB, uint256[2] memory pC, uint256[5] memory pubSignals) =
-            RaylsHookHelper.loadPrivateSwapIntentProof(jsonPrivateSwap);
+        // Get the proof and public signals from the json file
+        RaylsHookHelper.PrivateSwapPublic memory proofCorrect =
+            RaylsHookHelper.getPublicSignalsFromPrivateSwapIntentProof(jsonPrivateSwap, false, false);
 
-        bytes memory proofData = abi.encode(pA, pB, pC, pubSignals);
-        uint256 amountIn = 1e16;
-        IERC20Minimal(Currency.unwrap(currency0)).approve(address(swapRouter), amountIn);
+        // Get the ciphertext for the auditor from the json file
+        bytes memory ciphertextForAuditor = RaylsHookHelper.getJsonCiphertext(jsonEncryptedPayload);
 
-        string memory encKeyForAuditorStr = jsonEncryptedPayload.readString(".encKeyForAuditor");
-        string memory ciphertextStr = jsonEncryptedPayload.readString(".ciphertext");
+        // Calculate the commitment ID off-chain using both the ZK Snark Poseidon Hash and the ciphertext
+        uint256 commitmentId = uint256(hook.getCommitmentId(proofCorrect.poseidonHash, ciphertextForAuditor));
 
-        bytes memory encKeyForAuditor = RaylsHookHelper.hexStringToBytes(encKeyForAuditorStr);
-        bytes memory ciphertext = RaylsHookHelper.hexStringToBytes(ciphertextStr);
-
-        vm.warp(pubSignals[4]);
-        console.log("Block timestamp:", block.timestamp);
-
-        uint256 id = uint256(
-            keccak256(
-                abi.encodePacked(
-                    pubSignals[0], // Poseidon hash of (amount, recipient, nonce)
-                    ciphertext, // AES-encrypted message (always present)
-                    encKeyForAuditor // optional: can be empty bytes
-                )
-            )
+        // Store the commitment on-chain
+        vm.startPrank(proofSender, proofSender);
+        // Build the permit signature to approve the hook to spend the tokens
+        bytes memory permitSignature = RaylsHookHelper.buildPermitSignature(
+            vm,
+            proofSenderPk,
+            Currency.unwrap(currency0),
+            proofCorrect.timestamp,
+            proofSender,
+            address(hook),
+            proofCorrect.amountIn
         );
 
-        vm.startPrank(proofSender, proofSender);
-        hook.storeCommitment(id, ciphertext, encKeyForAuditor);
-        hook.executeCommitment(id, proofData);
+        // Call the hook to store the commitment
+        hook.storeCommitment(poolKey, commitmentId, ciphertextForAuditor, permitSignature);
+
+        // Revert if already exsits
+        bytes memory expectedRevert = abi.encodeWithSelector(RaylsHook.AlreadyExists.selector, commitmentId);
+        vm.expectRevert(expectedRevert);
+        hook.storeCommitment(poolKey, commitmentId, ciphertextForAuditor, permitSignature);
+
+        // For now we just approve the swapRouter to spend the tokens
+        // IERC20Minimal(Currency.unwrap(currency0)).approve(address(hook), amountIn);
+
+        // Move time forward but not enough to be able tcommitmentIdo execute the commitment
+        vm.warp(proofCorrect.timestamp - 1);
+        expectedRevert =
+            abi.encodeWithSelector(RaylsHook.CommitmentNotReady.selector, proofCorrect.timestamp, block.timestamp);
+        vm.expectRevert(expectedRevert);
+        hook.executeCommitment(poolKey, commitmentId, proofCorrect.proofData);
+
+        // Move time forward to be able to execute the commitment
+        vm.warp(proofCorrect.timestamp);
+
+        // Revert if commitementId is incorrect and doesnt match the proof
+        uint256 fakeId = 123456;
+        expectedRevert = abi.encodeWithSelector(RaylsHook.CommitmentNotFound.selector, fakeId);
+        vm.expectRevert(expectedRevert);
+        hook.executeCommitment(poolKey, fakeId, proofCorrect.proofData);
+
+        // Revert if the public signal poseidon hash is invalid
+        RaylsHookHelper.PrivateSwapPublic memory proofWithWrongHash =
+            RaylsHookHelper.getPublicSignalsFromPrivateSwapIntentProof(jsonPrivateSwap, false, true);
+        bytes32 fakeCommitmentId = hook.getCommitmentId(proofWithWrongHash.poseidonHash, ciphertextForAuditor);
+        expectedRevert = abi.encodeWithSelector(RaylsHook.CommitmentMismatch.selector, fakeCommitmentId, commitmentId);
+        vm.expectRevert(expectedRevert);
+        hook.executeCommitment(poolKey, commitmentId, proofWithWrongHash.proofData);
+
+        // Revert if the proof is invalid
+        RaylsHookHelper.PrivateSwapPublic memory proofWithWrongPA =
+            RaylsHookHelper.getPublicSignalsFromPrivateSwapIntentProof(jsonPrivateSwap, true, false);
+        expectedRevert = abi.encodeWithSelector(RaylsHook.InvalidPrivateSwapIntentProof.selector);
+        vm.expectRevert(expectedRevert);
+        hook.executeCommitment(poolKey, commitmentId, proofWithWrongPA.proofData);
+
+        // Execute the commitment successfully
+        BalanceDelta delta = hook.executeCommitment(poolKey, commitmentId, proofCorrect.proofData);
+        assertEq(int256(delta.amount0()), -int256(proofCorrect.amountIn));
+
+        // Revert if we want to execute it again
+        expectedRevert = abi.encodeWithSelector(RaylsHook.CommitmentNotActive.selector, commitmentId);
+        vm.expectRevert(expectedRevert);
+        hook.executeCommitment(poolKey, commitmentId, proofCorrect.proofData);
         vm.stopPrank();
 
-        (bytes memory onChainCiphertext, bytes memory onChainEncKeyForAuditor,, bool executed) = hook.commitments(id);
+        // Test the auditor part
+        (bytes memory onChainCiphertext,, RaylsHook.CommitmentStatus status) =
+            hook.commitments(poolKey.toId(), commitmentId);
 
-        assertEq(executed, true);
-        assertEq(onChainCiphertext, ciphertext);
-        assertEq(onChainEncKeyForAuditor, encKeyForAuditor);
-        string memory hexOnChainCiphertext = vm.toString(onChainCiphertext);
-        string memory hexOnChainEncKeyForAuditor = vm.toString(onChainEncKeyForAuditor);
+        assertEq(uint8(status), uint8(RaylsHook.CommitmentStatus.Executed));
+        assertEq(onChainCiphertext, ciphertextForAuditor);
+
+        string memory onChainCiphertextStr = vm.toString(onChainCiphertext);
 
         // Decrypt off-chain and use the private values to calculate the commitment ID
         // It must match to the one stored on-chain created by the circuit.
-        uint256 decryptedCommitmentId =
-            RaylsHookHelper.decryptCiphertext(vm, auditorPk, hexOnChainCiphertext, hexOnChainEncKeyForAuditor);
+        uint256 decryptedPoseidonHash = RaylsHookHelper.decryptCiphertext(vm, auditorPk, onChainCiphertextStr);
 
         // Check that commitmentId is correct
-        assertEq(pubSignals[0], decryptedCommitmentId);
+        assertEq(proofCorrect.poseidonHash, decryptedPoseidonHash);
+    }
 
-        // assertEq(selector, IHooks.beforeSwap.selector, "selector mismatch");
-        // delta and fee are placeholder, assert if needed
+    /**
+     * Loads the poseidon hash from the ZK Snark proof, decrypts the ciphertext from the encrypted payload and checks that they are equal.
+     * This simulates the auditor decrypting the ciphertext and checking that the commitment ID is correct.
+     * Which proves that the values in the encrypted payload: amountIn, zeroForOne, sender, timestamp are correct.
+     */
+    function testEncryptedCommitmentForAuditor() public {
+        // Get the proof and public signals from the json file
+        RaylsHookHelper.PrivateSwapPublic memory proofCorrect =
+            RaylsHookHelper.getPublicSignalsFromPrivateSwapIntentProof(jsonPrivateSwap, false, false);
+
+        // Get the ciphertext for the auditor from the json file
+        bytes memory ciphertextForAuditor = RaylsHookHelper.getJsonCiphertext(jsonEncryptedPayload);
+        string memory onChainCiphertextStr = vm.toString(ciphertextForAuditor);
+
+        // First lets try with a fake ciphertext and see that cannot decrypt it
+        // The wallet here was set at an invalid value so decryption will fail
+        bytes memory fakeCiphertext =
+            hex"ee86f15b901b6c155b8c3ec570e50f4c04b86d3cf44aafa7cc640a3e141354da40eef4c6ed78fd8077be72c3e853e435cf9fa2d70164501cd37efec0dc0a04119f66ecf007b190100c856d5aae7a5fec4d38b39c99bed1d8923635820c81bb9d8d52794056400a7d19f6e8ce663c79684cc19a7935ca8189811169a5fbe5c1147fd80f3a83207217c1a895862b162c89ce85dc51c53571c1202b90e1e710cb801d47b4aabeeac981197ba285c399c344ff09d56a386f26169726e8f29c9ff4c45c033816426f6d8d4befadb6f008d2bf8537022f5aaa9e93920fa8e959c0ca30e0edabd55bcfcbc3050343426ea294e61321e1885efe3db4be70f4bc9b8a0b2f4c";
+        string memory fakeCiphertextStr = vm.toString(fakeCiphertext);
+        uint256 decryptedPoseidonHash = RaylsHookHelper.decryptCiphertext(vm, auditorPk, fakeCiphertextStr);
+
+        // Check that hashes are different
+        assertNotEq(proofCorrect.poseidonHash, decryptedPoseidonHash);
+
+        // Now a successful decryption
+        // Decrypt off-chain and use the poseidonHash for comparison
+        // It must match to the one stored on-chain created by the circuit.
+        decryptedPoseidonHash = RaylsHookHelper.decryptCiphertext(vm, auditorPk, onChainCiphertextStr);
+
+        // Check that hashes are equal
+        assertEq(proofCorrect.poseidonHash, decryptedPoseidonHash);
+    }
+
+    /**
+     * Tests the full flow of cancelling a private swap commitment:
+     * 1. Loads proof and public signals from the json file
+     * 2. Loads the ciphertext for the auditor from the json file
+     * 3. Calculates the commitment ID off-chain using both the ZK Snark Poseidon hash and the ciphertext
+     * 4. Stores the commitment on-chain
+     * 5. Does multiple negative revert tests.
+     * 6. Cancels the commitment successfully
+     * 7. Tries to execute it and reverts
+     */
+    function testCancelCommitment() public {
+        // Get the proof and public signals from the json file
+        RaylsHookHelper.PrivateSwapPublic memory proofCorrect =
+            RaylsHookHelper.getPublicSignalsFromPrivateSwapIntentProof(jsonPrivateSwap, false, false);
+
+        // Get the ciphertext for the auditor from the json file
+        bytes memory ciphertextForAuditor = RaylsHookHelper.getJsonCiphertext(jsonEncryptedPayload);
+
+        // Calculate the commitment ID off-chain using both the ZK Snark Poseidon Hash and the ciphertext
+        uint256 commitmentId = uint256(hook.getCommitmentId(proofCorrect.poseidonHash, ciphertextForAuditor));
+
+        // Store the commitment on-chain
+        vm.startPrank(proofSender, proofSender);
+        // Build the permit signature to approve the hook to spend the tokens
+        bytes memory permitSignature = RaylsHookHelper.buildPermitSignature(
+            vm,
+            proofSenderPk,
+            Currency.unwrap(currency0),
+            proofCorrect.timestamp,
+            proofSender,
+            address(hook),
+            proofCorrect.amountIn
+        );
+
+        // Call the hook to store the commitment
+        hook.storeCommitment(poolKey, commitmentId, ciphertextForAuditor, permitSignature);
+
+        // Revert if the public signal poseidon hash is invalid
+        RaylsHookHelper.PrivateSwapPublic memory proofWithWrongHash =
+            RaylsHookHelper.getPublicSignalsFromPrivateSwapIntentProof(jsonPrivateSwap, false, true);
+        bytes32 fakeCommitmentId = hook.getCommitmentId(proofWithWrongHash.poseidonHash, ciphertextForAuditor);
+        bytes memory expectedRevert =
+            abi.encodeWithSelector(RaylsHook.CommitmentMismatch.selector, fakeCommitmentId, commitmentId);
+        vm.expectRevert(expectedRevert);
+        hook.cancelCommitment(poolKey, commitmentId, proofWithWrongHash.proofData);
+
+        // Revert if the proof is invalid
+        RaylsHookHelper.PrivateSwapPublic memory proofWithWrongPA =
+            RaylsHookHelper.getPublicSignalsFromPrivateSwapIntentProof(jsonPrivateSwap, true, false);
+        expectedRevert = abi.encodeWithSelector(RaylsHook.InvalidPrivateSwapIntentProof.selector);
+        vm.expectRevert(expectedRevert);
+        hook.cancelCommitment(poolKey, commitmentId, proofWithWrongPA.proofData);
+
+        // Cancel it before it can be executed
+        hook.cancelCommitment(poolKey, commitmentId, proofCorrect.proofData);
+
+        // Cancel it again shoule revvert
+        expectedRevert = abi.encodeWithSelector(RaylsHook.CommitmentNotActive.selector, commitmentId);
+        vm.expectRevert(expectedRevert);
+        hook.cancelCommitment(poolKey, commitmentId, proofCorrect.proofData);
+
+        // Move time forward to be able to execute the commitment
+        vm.warp(proofCorrect.timestamp + 1);
+
+        // Revert if we try to execute a cancelled commitment
+        expectedRevert = abi.encodeWithSelector(RaylsHook.CommitmentNotActive.selector, commitmentId);
+        vm.expectRevert(expectedRevert);
+        hook.executeCommitment(poolKey, commitmentId, proofCorrect.proofData);
+        vm.stopPrank();
+
+        (,, RaylsHook.CommitmentStatus status) = hook.commitments(poolKey.toId(), commitmentId);
+
+        assertEq(uint8(status), uint8(RaylsHook.CommitmentStatus.Cancelled));
     }
 }

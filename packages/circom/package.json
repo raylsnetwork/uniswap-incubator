@@ -1,5 +1,5 @@
 {
-  "name": "suitability-zk",
+  "name": "rayls-hook-circom",
   "version": "1.0.0",
   "description": "Zero-Knowledge Suitability Assessment System",
   "main": "index.js",

@@ -9,6 +9,7 @@
     "account:reveal-pk": "node scripts-js/revealPK.js",
     "chain": "make chain",
     "clean": "forge clean",
+    "coverage": "forge coverage --ir-minimum --report lcov && genhtml lcov.info --output-directory coverage && open coverage/index.html",
     "compile": "make compile",
     "deploy": "node scripts-js/parseArgs.js",
     "flatten": "make flatten",
@@ -28,6 +29,7 @@
     "toml": "~3.0.0"
   },
   "devDependencies": {
+    "lcov": "^1.16.0",
     "shx": "^0.3.4"
   }
 }
