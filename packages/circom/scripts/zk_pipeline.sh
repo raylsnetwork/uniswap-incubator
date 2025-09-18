@@ -198,7 +198,7 @@ node - <<'NODE'
 const fs = require('fs');
 const path = require('path');
 
-const here = path.resolve(__dirname, '..');          // packages/circom/scripts
+const here = process.cwd();         // packages/circom/scripts
 const foundry = path.resolve(here, '../foundry');    // packages/foundry
 
 const hexPath = path.join(foundry, 'solidityInputs.json');
@@ -223,7 +223,7 @@ node - <<'NODE'
 const fs = require('fs');
 const path = require('path');
 
-const here = path.resolve(__dirname, '..');          // packages/circom/scripts
+const here = process.cwd();         // packages/circom/scripts
 const foundry = path.resolve(here, '../foundry');    // packages/foundry
 
 const hexPath = path.join(foundry, 'solidityInputs.json');
