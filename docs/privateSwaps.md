@@ -12,6 +12,10 @@ Key use cases include:
 
 - Compliance & oversight – DAOs and regulated protocols can prove onchain to an auditor the agreed swap schedules according to the defined tokenomics.
 
+<p align="left"  style="margin-left:12em;">
+  <img src="./RaylsHook_private_swaps_block_diagram.svg" alt="Private Swap Block Diagram" width="700"/>
+</p>
+
 ## 🔄 Flow
 
 <p align="left">
@@ -77,6 +81,12 @@ Key use cases include:
 
 ## Key notes
 
-- We use circom for zksnark and AES encryption for the auditor. Encryption in circom is too expensive.
+- We use circom for zkSNARK and ECIES encryption for the auditor (using nodejs scripts). Encryption in circom is too expensive.
 - We could enforce the auditor to approve a commitement cancelation.
 - When calling executeCommitment, Rayls Middleware would use private bundlers for additional MEV protection.
+
+## Future Extensions and Use Cases
+
+- Decentralized Executors: Anyone could register as an executor and earn a percentage of swap fees for executing commitments, creating an open marketplace of executors.
+- Auditor-Gated Cancellation: Cancellation requests could require auditor approval, preventing users from revoking commitments that already passed compliance checks.
+- Multi-Auditor Support: Commitments could be associated with multiple auditors, allowing collaborative oversight or redundancy in regulatory validation.
