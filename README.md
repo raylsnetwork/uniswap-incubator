@@ -99,6 +99,13 @@ Before you begin, you need to install the following tools:
 - [Git](https://git-scm.com/downloads)
 - [Circom](https://docs.circom.io/getting-started/installation/) (for ZK circuits)
 - [SnarkJS](https://github.com/iden3/snarkjs) (for ZK proofs)
+- [Foundry](https://getfoundry.sh/introduction/installation/)
+
+To better run circom you might need to add this to your PATH:
+
+```bash
+export PATH=$PATH:$HOME/.cargo/bin
+```
 
 ## 🚀 Quick Start
 
@@ -109,7 +116,7 @@ To get started with Rayls Hook, follow these steps:
 ```bash
 # Clone the repository
 git clone https://github.com/raylsnetwork/uniswap-incubator.git
-cd rayls-hook
+cd uniswap-incubator
 
 # Install all dependencies
 yarn install
@@ -119,7 +126,7 @@ yarn install
 
 ```bash
 # Start local Ethereum network (Scaffold-ETH 2)
-yarn workspace foundry chain
+yarn workspace @se-2/foundry chain
 ```
 
 This command starts a local Ethereum network using Foundry. The network runs on your local machine and can be used for testing and development.
@@ -128,8 +135,8 @@ This command starts a local Ethereum network using Foundry. The network runs on 
 
 ```bash
 # Or setup specific circuits
-yarn workspace circom setup-suitability      # Suitability assessment circuit
-yarn workspace circom setup-private-swap     # Private swap intent circuit
+yarn workspace rayls-hook-circom setup-suitability      # Suitability assessment circuit
+yarn workspace rayls-hook-circom setup-private-swap     # Private swap intent circuit
 ```
 
 ### 4. Deploy Smart Contracts
