@@ -31,6 +31,7 @@
     "foundry:generate": "yarn workspace @se-2/foundry account:generate",
     "foundry:lint": "yarn workspace @se-2/foundry lint",
     "foundry:test": "yarn workspace @se-2/foundry test",
+    "foundry:coverage": "yarn workspace @se-2/foundry coverage",
     "foundry:verify": "yarn workspace @se-2/foundry verify",
     "generate": "yarn foundry:generate",
     "postinstall": "husky install",
@@ -44,10 +45,15 @@
     "precommit": "lint-staged",
     "start": "yarn workspace @se-2/nextjs dev",
     "test": "yarn foundry:test",
+    "coverage": "yarn foundry:coverage",
     "vercel": "yarn workspace @se-2/nextjs vercel",
     "vercel:login": "yarn workspace @se-2/nextjs vercel:login",
     "vercel:yolo": "yarn workspace @se-2/nextjs vercel:yolo",
-    "verify": "yarn foundry:verify"
+    "verify": "yarn foundry:verify",
+    "setup-suitability": "yarn workspace rayls-hook-circom setup-suitability",
+    "setup-private-swap": "yarn workspace rayls-hook-circom setup-private-swap",
+    "prove-suitability": "yarn workspace rayls-hook-circom prove-suitability",
+    "prove-private-swap": "yarn workspace rayls-hook-circom prove-private-swap"
   },
   "devDependencies": {
     "husky": "~9.1.6",

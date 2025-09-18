@@ -126,7 +126,7 @@ yarn install
 
 ```bash
 # Start local Ethereum network (Scaffold-ETH 2)
-yarn workspace @se-2/foundry chain
+yarn chain
 ```
 
 This command starts a local Ethereum network using Foundry. The network runs on your local machine and can be used for testing and development.
@@ -143,7 +143,7 @@ yarn workspace rayls-hook-circom setup-private-swap     # Private swap intent ci
 
 ```bash
 # Deploy contracts to local network
-yarn workspace @se-2/foundry deploy
+yarn deploy
 ```
 
 This command deploys the Rayls Hook smart contracts to the local network, including the ZK verifiers and Uniswap v4 hooks.
@@ -152,7 +152,7 @@ This command deploys the Rayls Hook smart contracts to the local network, includ
 
 ```bash
 # Start the NextJS frontend
-yarn workspace @se-2/nextjs start
+yarn start
 ```
 
 Visit your app on: `http://localhost:3000`. You can interact with the suitability assessment and test the ZK proof verification.
@@ -160,7 +160,7 @@ Visit your app on: `http://localhost:3000`. You can interact with the suitabilit
 ### 6. Running tests
 
 ```bash
-yarn workspace @se-2/foundry test
+yarn test
 ```
 
 ### 7. Check coverage
@@ -168,7 +168,7 @@ yarn workspace @se-2/foundry test
 (We focused on RaylsHook contract for full coverage)
 
 ```bash
-yarn workspace @se-2/foundry coverage
+yarn coverage
 ```
 
 ## 🛠️ Development
