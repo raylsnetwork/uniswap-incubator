@@ -3606,7 +3606,7 @@ __metadata:
     prettier: ~2.8.8
     qrcode: ~1.5.3
     shx: ^0.3.4
-    toml: ~3.0.0
+    toml: ~5.0.1
   languageName: unknown
   linkType: soft
 
@@ -15711,10 +15711,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"toml@npm:~3.0.0":
-  version: 3.0.0
-  resolution: "toml@npm:3.0.0"
-  checksum: 5d7f1d8413ad7780e9bdecce8ea4c3f5130dd53b0a4f2e90b93340979a137739879d7b9ce2ce05c938b8cc828897fe9e95085197342a1377dd8850bf5125f15f
+"toml@npm:~5.0.1":
+  version: 5.0.1
+  resolution: "toml@npm:5.0.1"
+  checksum: 2fbeb10e6c9f6e3a49ada70677824c6e74e771d325c6f714c58d585233766641bf0590f19bbb944f5fb9af38e4b1c3ce8f11e2b7eb8359689ff1b3103ee723d2
   languageName: node
   linkType: hard
 
