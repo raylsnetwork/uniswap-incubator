@@ -2331,17 +2331,17 @@ __metadata:
   linkType: hard
 
 "@libp2p/crypto@npm:^5.0.0, @libp2p/crypto@npm:^5.1.8":
-  version: 5.1.8
-  resolution: "@libp2p/crypto@npm:5.1.8"
+  version: 5.2.0
+  resolution: "@libp2p/crypto@npm:5.2.0"
   dependencies:
-    "@libp2p/interface": ^2.11.0
-    "@noble/curves": ^1.9.1
-    "@noble/hashes": ^1.8.0
-    multiformats: ^13.3.6
-    protons-runtime: ^5.5.0
-    uint8arraylist: ^2.4.8
-    uint8arrays: ^5.1.0
-  checksum: 1e1f526539dead7180912c88aed648edff57ba5b256002cc568c788ffeadf6b627455b3e94cec9684930e6ab2cb2dfb3780aff37913141cd3977260db51748d1
+    "@libp2p/interface": ^3.4.0
+    "@noble/curves": ^2.0.1
+    "@noble/hashes": ^2.0.1
+    multiformats: ^14.0.0
+    protons-runtime: ^7.0.0
+    uint8arraylist: ^3.0.2
+    uint8arrays: ^6.1.1
+  checksum: 916d2e9693c5eaa0395b9a193131652dad1ffeb35cc9219bc27a2f03de506b95ca54df674669b4adb83d0504e9f8b1108295a9d9d737114870d798aaba8f001b
   languageName: node
   linkType: hard
 
@@ -2358,6 +2358,20 @@ __metadata:
     progress-events: ^1.0.1
     uint8arraylist: ^2.4.8
   checksum: 94c20fb158b7d436dda8bb4d136335879e34453530f152601f12c2e17b2adeddbe741d1682b25cc902ddef1546200b2ae43a4a2227b549c7f9fc245d2ce55edf
+  languageName: node
+  linkType: hard
+
+"@libp2p/interface@npm:^3.4.0":
+  version: 3.4.0
+  resolution: "@libp2p/interface@npm:3.4.0"
+  dependencies:
+    "@multiformats/dns": ^1.0.6
+    "@multiformats/multiaddr": ^13.0.3
+    main-event: ^1.0.5
+    multiformats: ^14.0.0
+    progress-events: ^1.1.0
+    uint8arraylist: ^3.0.2
+  checksum: 67e0b77334fcc1101d64113e1075297dbcffb87ac80da8339fb45c67841fa85ff25c0b7533b4f2f1b8aad92cb775e55844deab2391fbddd03c93149e82477d34
   languageName: node
   linkType: hard
 
@@ -2696,6 +2710,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@multiformats/multiaddr@npm:^13.0.3":
+  version: 13.0.3
+  resolution: "@multiformats/multiaddr@npm:13.0.3"
+  dependencies:
+    "@chainsafe/is-ip": ^2.0.1
+    multiformats: ^14.0.0
+    uint8-varint: ^3.0.0
+    uint8arrays: ^6.1.1
+  checksum: 0b133ccfe082e755550f3fb0b0bc8d5377478ae94995b726009880d48d653781cc8ff7d842e6ae7510a346c8cbac48e0e8a7d2ba56974b5c91f302cd2959722d
+  languageName: node
+  linkType: hard
+
 "@multiformats/murmur3@npm:^2.1.0, @multiformats/murmur3@npm:^2.1.3, @multiformats/murmur3@npm:^2.1.8":
   version: 2.1.8
   resolution: "@multiformats/murmur3@npm:2.1.8"
@@ -2867,6 +2893,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/curves@npm:^2.0.1":
+  version: 2.4.0
+  resolution: "@noble/curves@npm:2.4.0"
+  dependencies:
+    "@noble/hashes": 2.4.0
+  checksum: 3e1d2a57efea01bd76cd2e0d711446b67ac4124988f4abe8b4b849f04a9d52b7fa1e7fa7d8ed94151ca31cb09c0bc7e00b77a057a7d99f114a0d45f8ead6d71e
+  languageName: node
+  linkType: hard
+
 "@noble/curves@npm:~1.8.1":
   version: 1.8.2
   resolution: "@noble/curves@npm:1.8.2"
@@ -2915,6 +2950,13 @@ __metadata:
   version: 1.8.0
   resolution: "@noble/hashes@npm:1.8.0"
   checksum: c94e98b941963676feaba62475b1ccfa8341e3f572adbb3b684ee38b658df44100187fa0ef4220da580b13f8d27e87d5492623c8a02ecc61f23fb9960c7918f5
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:2.4.0, @noble/hashes@npm:^2.0.1":
+  version: 2.4.0
+  resolution: "@noble/hashes@npm:2.4.0"
+  checksum: 0eaf273e341c53ebf7de3e6dcc27755c2124da04152549a61580a525929844e05a7799aeeb9a6a46943cde59ff297ebe6d61968669b162577db188c62b948efe
   languageName: node
   linkType: hard
 
@@ -11912,6 +11954,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"main-event@npm:^1.0.5":
+  version: 1.0.5
+  resolution: "main-event@npm:1.0.5"
+  checksum: 22eef33adac71176f8f1fe402303f4320a2f5995af69b0f6135d950a7d7d7822cad8e96405fd5a970dc21e687441e66607d97a754a2e4e8e0ed2f7434a8732e8
+  languageName: node
+  linkType: hard
+
 "make-dir@npm:^3.1.0":
   version: 3.1.0
   resolution: "make-dir@npm:3.1.0"
@@ -12329,6 +12378,13 @@ __metadata:
   version: 13.4.0
   resolution: "multiformats@npm:13.4.0"
   checksum: bf2c3c25f86e52c23764340f2fa3922908e1df8e1cb6ccf1baefd81246b647725473b8b237f3d4fc3973fe2f5bc9f8e7dc9cc50d926840fb541b331488d26f57
+  languageName: node
+  linkType: hard
+
+"multiformats@npm:^14.0.0":
+  version: 14.0.5
+  resolution: "multiformats@npm:14.0.5"
+  checksum: 7274d3c8296c044f28f30792f4d9afdcf0ae84f7eb42a4c3b278053c28667780586c51f9949e307f93c9e983a6e83b69116ef447beface612d37b3388573afdd
   languageName: node
   linkType: hard
 
@@ -13812,6 +13868,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"progress-events@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "progress-events@npm:1.1.0"
+  checksum: d6c2b69c9a35fc6f84876fb4edd6e267c070213eacdb3362c08d4ac00fbde318bdd9020f1b42754b7cac7385fef873d58966e729b986a2b85611f708a68d6bc1
+  languageName: node
+  linkType: hard
+
 "promise-all-reject-late@npm:^1.0.0":
   version: 1.0.1
   resolution: "promise-all-reject-late@npm:1.0.1"
@@ -13901,6 +13964,17 @@ __metadata:
     uint8arraylist: ^2.4.3
     uint8arrays: ^5.0.1
   checksum: b7ec5ea2fbf469d352b9c173617c9a0aacdd45c415387567c0603d5c4ed1932f916b875508556e7ba8df5614ca3a40b0c40c06614526fc11b711c8007d387362
+  languageName: node
+  linkType: hard
+
+"protons-runtime@npm:^7.0.0":
+  version: 7.1.2
+  resolution: "protons-runtime@npm:7.1.2"
+  dependencies:
+    uint8-varint: ^3.0.0
+    uint8arraylist: ^3.0.0
+    uint8arrays: ^6.0.0
+  checksum: 89265478229dbd18bf0126a1cadc243ed0ab15d13365ed317dbfe31d2711480d57a7995d16d8c942bdbc71482427e262121afd69eea28a48a2d8711e2df455c4
   languageName: node
   linkType: hard
 
@@ -16028,12 +16102,31 @@ __metadata:
   languageName: node
   linkType: hard
 
+"uint8-varint@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "uint8-varint@npm:3.0.0"
+  dependencies:
+    uint8arraylist: ^3.0.1
+    uint8arrays: ^6.1.0
+  checksum: 28310fd187ac8acdacf6c1f92317f4ca359b9fc602dbda7b3a13e92a81bcb375062db997ed8e0e3581ca8b2d354bae34ad61da067f0c9605adf8dc0a8aca3c6a
+  languageName: node
+  linkType: hard
+
 "uint8arraylist@npm:^2.0.0, uint8arraylist@npm:^2.4.3, uint8arraylist@npm:^2.4.8":
   version: 2.4.8
   resolution: "uint8arraylist@npm:2.4.8"
   dependencies:
     uint8arrays: ^5.0.1
   checksum: 8259124cf5c7acd29edeed346489d898f3eb12f129dadedb1c263ad8d637e1a2f689968934a94c16804e39f6e8765178507be6d7b3c3c6b67147ad7546d34186
+  languageName: node
+  linkType: hard
+
+"uint8arraylist@npm:^3.0.0, uint8arraylist@npm:^3.0.1, uint8arraylist@npm:^3.0.2":
+  version: 3.0.2
+  resolution: "uint8arraylist@npm:3.0.2"
+  dependencies:
+    uint8arrays: ^6.0.0
+  checksum: b8e8699878b500abf0f21f14e028e30452db4323915b38cb2fc4d3809e25a700a78d3f464422ad67ae4dc5331da9ad451d92bf70338049bc247abb71632bc8bc
   languageName: node
   linkType: hard
 
@@ -16061,6 +16154,15 @@ __metadata:
   dependencies:
     multiformats: ^13.0.0
   checksum: 6284d0591183df48cb09627e0c4dfd059eb3576997007ec593cb501a30e7a67fd17c1d6358e45242c0f8b7f6cf54e68412ab3b7473bc00aad5acac323e6861ca
+  languageName: node
+  linkType: hard
+
+"uint8arrays@npm:^6.0.0, uint8arrays@npm:^6.1.0, uint8arrays@npm:^6.1.1":
+  version: 6.1.1
+  resolution: "uint8arrays@npm:6.1.1"
+  dependencies:
+    multiformats: ^14.0.0
+  checksum: de80d3c5caafc383c66948abfca709b8ed57aa42adc2abe0b2eb7fd3b77ada1b08636bd613bae7f3adcb13d5c6b70beffe70efb441cfd4032c0ca125abeae4b7
   languageName: node
   linkType: hard
 
